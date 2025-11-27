@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Three.js Heightmap Demo</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #0b1320;
+        font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        color: #e8ecf5;
+      }
+      #info {
+        position: fixed;
+        top: 12px;
+        left: 12px;
+        padding: 8px 12px;
+        background: rgba(0, 0, 0, 0.45);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 8px;
+        font-size: 13px;
+        letter-spacing: 0.1px;
+        backdrop-filter: blur(6px);
+        z-index: 5;
+      }
+      #info strong {
+        color: #89c2ff;
+      }
+      canvas {
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="info">
+      <strong>Heightmap:</strong> heightmaps/sample-heightmap.png<br />
+      Seed 1337 · Noise: Simplex (fBm)<br />
+      Clique no canvas para capturar o mouse · WASD move · Esc solta · Scroll gira quando solto
+    </div>
+    <canvas id="scene-canvas"></canvas>
+
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+          "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+      }
+    </script>
+    <script type="module">
+      import * as THREE from "three";
+      import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+      import { PointerLockControls } from "three/addons/controls/PointerLockControls.js";
+
+      const canvas = document.getElementById("scene-canvas");
+      const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x0b1320);
+      scene.fog = new THREE.Fog(0x0b1320, 140, 240);
+
+      const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+      camera.position.set(130, 90, 130);
+
+      // FPS navigation (Pointer Lock)
+      const fpControls = new PointerLockControls(camera, renderer.domElement);
+      camera.position.set(0, 25, 80);
+      scene.add(fpControls.getObject());
+
+      // Orbit para inspeção quando mouse não está capturado
+      const orbit = new OrbitControls(camera, renderer.domElement);
+      orbit.enableDamping = true;
+      orbit.enabled = true;
+
+      const hemiLight = new THREE.HemisphereLight(0xa7c7ff, 0x1a1f2a, 0.8);
+      scene.add(hemiLight);
+
+      const dirLight = new THREE.DirectionalLight(0xffffff, 1.1);
+      dirLight.position.set(80, 120, 60);
+      dirLight.castShadow = true;
+      dirLight.shadow.mapSize.set(2048, 2048);
+      scene.add(dirLight);
+
+      const HEIGHTMAP_SRC = "heightmaps/sample-heightmap.png";
+
+      async function loadHeightData(src) {
+        const img = await new Promise((resolve, reject) => {
+          const image = new Image();
+          image.src = src;
+          image.crossOrigin = "anonymous";
+          image.onload = () => resolve(image);
+          image.onerror = reject;
+        });
+
+        const canvasHM = document.createElement("canvas");
+        canvasHM.width = img.width;
+        canvasHM.height = img.height;
+        const ctx = canvasHM.getContext("2d");
+        ctx.drawImage(img, 0, 0);
+        const { data } = ctx.getImageData(0, 0, img.width, img.height);
+        const heights = new Float32Array(img.width * img.height);
+        for (let i = 0; i < heights.length; i++) {
+          heights[i] = data[i * 4] / 255; // grayscale in R channel
+        }
+        return { widths: img.width, heightsCount: img.height, data: heights };
+      }
+
+      function heightAt(data, w, h, x, z, size, scale, bias = 0) {
+        // x,z in world coordinates centered at 0
+        const half = size / 2;
+        const u = THREE.MathUtils.clamp((x + half) / size, 0, 1);
+        const v = THREE.MathUtils.clamp((z + half) / size, 0, 1);
+        const px = u * (w - 1);
+        const pz = v * (h - 1);
+        const x0 = Math.floor(px);
+        const z0 = Math.floor(pz);
+        const x1 = Math.min(x0 + 1, w - 1);
+        const z1 = Math.min(z0 + 1, h - 1);
+        const xf = px - x0;
+        const zf = pz - z0;
+        const i = z0 * w + x0;
+        const i2 = z0 * w + x1;
+        const i3 = z1 * w + x0;
+        const i4 = z1 * w + x1;
+        const a = THREE.MathUtils.lerp(data[i], data[i2], xf);
+        const b = THREE.MathUtils.lerp(data[i3], data[i4], xf);
+        return THREE.MathUtils.lerp(a, b, zf) * scale + bias;
+      }
+
+      async function buildTerrain() {
+        const { widths: hmW, heightsCount: hmH, data: heights } = await loadHeightData(HEIGHTMAP_SRC);
+        const size = 220;
+        const heightScale = 36;
+        const heightBias = -5;
+        const geometry = new THREE.PlaneGeometry(size, size, hmW - 1, hmH - 1);
+        geometry.rotateX(-Math.PI / 2);
+
+        const position = geometry.attributes.position;
+        for (let i = 0; i < position.count; i++) {
+          const ix = i % hmW;
+          const iz = Math.floor(i / hmW);
+          const h = heights[iz * hmW + ix] * heightScale + heightBias; // slight bias down
+          position.setY(i, h);
+        }
+        position.needsUpdate = true;
+        geometry.computeVertexNormals();
+
+        const texture = new THREE.TextureLoader().load(HEIGHTMAP_SRC);
+        texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping;
+        texture.minFilter = THREE.LinearFilter;
+        texture.magFilter = THREE.LinearFilter;
+
+        const material = new THREE.MeshStandardMaterial({
+          color: 0x8aa1b8,
+          map: texture,
+          metalness: 0.15,
+          roughness: 0.85,
+        });
+
+        const terrain = new THREE.Mesh(geometry, material);
+        terrain.receiveShadow = true;
+        terrain.castShadow = true;
+        scene.add(terrain);
+
+        return { terrain, heights, hmW, hmH, size, heightScale, heightBias };
+      }
+
+      const ground = new THREE.Mesh(
+        new THREE.CircleGeometry(260, 64).rotateX(-Math.PI / 2),
+        new THREE.MeshStandardMaterial({ color: 0x0f1624, roughness: 1.0 })
+      );
+      ground.receiveShadow = true;
+      scene.add(ground);
+
+      function setupPointerLock() {
+        const blocker = document.getElementById("info");
+        const clickTarget = renderer.domElement;
+        const onClick = (event) => {
+          event.preventDefault();
+          fpControls.lock();
+        };
+        clickTarget.addEventListener("click", onClick);
+        fpControls.addEventListener("lock", () => {
+          blocker.style.opacity = "0.7";
+          orbit.enabled = false;
+        });
+        fpControls.addEventListener("unlock", () => {
+          blocker.style.opacity = "1";
+          orbit.enabled = true;
+          orbit.target.copy(fpControls.getObject().position);
+          orbit.update();
+        });
+      }
+
+      const keyState = { forward: false, backward: false, left: false, right: false };
+      function setupKeys() {
+        const onKey = (state) => (event) => {
+          switch (event.code) {
+            case "KeyW":
+            case "ArrowUp":
+              keyState.forward = state;
+              break;
+            case "KeyS":
+            case "ArrowDown":
+              keyState.backward = state;
+              break;
+            case "KeyA":
+            case "ArrowLeft":
+              keyState.left = state;
+              break;
+            case "KeyD":
+            case "ArrowRight":
+              keyState.right = state;
+              break;
+          }
+        };
+        document.addEventListener("keydown", onKey(true));
+        document.addEventListener("keyup", onKey(false));
+      }
+
+      function onResize() {
+        const { innerWidth, innerHeight } = window;
+        camera.aspect = innerWidth / innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(innerWidth, innerHeight);
+      }
+      window.addEventListener("resize", onResize);
+
+      const clock = new THREE.Clock();
+      const velocity = new THREE.Vector3();
+      const direction = new THREE.Vector3();
+      let heightSampler = null;
+
+      buildTerrain().then(({ heights, hmW, hmH, size, heightScale, heightBias }) => {
+        heightSampler = (x, z) => heightAt(heights, hmW, hmH, x, z, size, heightScale, heightBias);
+      });
+
+      setupPointerLock();
+      setupKeys();
+
+      function updateMovement(delta) {
+        const damping = 8.0;
+        velocity.x -= velocity.x * damping * delta;
+        velocity.z -= velocity.z * damping * delta;
+
+        direction.set(
+          (keyState.right ? 1 : 0) - (keyState.left ? 1 : 0),
+          0,
+          (keyState.forward ? 1 : 0) - (keyState.backward ? 1 : 0) // positive means forward
+        ).normalize();
+
+        const speed = 30;
+        if (direction.lengthSq() > 0) {
+          fpControls.moveRight(direction.x * speed * delta);
+          fpControls.moveForward(direction.z * speed * delta);
+        }
+
+        if (heightSampler) {
+          const pos = fpControls.getObject().position;
+          const ground = heightSampler(pos.x, pos.z);
+          const desiredY = ground + 6.5; // eye height above terrain
+          pos.y = THREE.MathUtils.lerp(pos.y, desiredY, 0.25);
+        }
+      }
+
+      function animate() {
+        const delta = clock.getDelta();
+        updateMovement(delta);
+        if (orbit.enabled) {
+          orbit.update();
+        }
+        renderer.render(scene, camera);
+        requestAnimationFrame(animate);
+      }
+
+      animate();
+    </script>
+  </body>
+</html>
