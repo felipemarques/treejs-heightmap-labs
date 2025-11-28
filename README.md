@@ -6,6 +6,7 @@ Lightweight demo to turn a grayscale heightmap into a 3D terrain with Three.js, 
 - `heightmaps/sample-heightmap.png`: generated with seed 1337 (Simplex fBm, slight island falloff).
 - `scripts/generate_heightmap.py`: creates the heightmap using value/perlin/simplex noise (no external deps beyond Pillow).
 - `index.html`: loads the heightmap, builds geometry directly from pixel data, and adds Pointer Lock controls (WASD + mouse).
+- `examples/`: gallery of progressively more advanced demos (see below).
 
 ## Prereqs
 - Python 3 with Pillow available (for regenerating heightmaps).
@@ -30,7 +31,12 @@ Tweak in `scripts/generate_heightmap.py`:
 
 The output overwrites `heightmaps/sample-heightmap.png`. Reload the page to see it.
 
-## How the rendering works
+## Examples
+- `examples/example01`: Static heightmap → terrain mesh with Pointer Lock (WASD + jump), fog, lights, and starfield backdrop. Uses bilinear sampling to keep the player grounded.
+- `examples/example02`: Procedural Simplex fBM heightmap, updated at load-time; Pointer Lock + Orbit blend; performance overlay (FPS, draws, tris, GPU, heap).
+- `examples/example03`: Infinite procedural terrain streamed in chunks with multi-LOD meshes, central crosshair + HUD, and a low-poly zombie NPC that pursues the player.
+
+## How the rendering works (base demo)
 - Import map points `three` and `three/addons/` to the unpkg CDN, so no build step needed.
 - The heightmap is read into a `Float32Array`; `PlaneGeometry` vertices get their y set from grayscale values, normals are recomputed.
 - A bilinear sampler (`heightAt`) keeps the camera “grounded” by sampling the same height data used for the mesh.
@@ -38,5 +44,4 @@ The output overwrites `heightmaps/sample-heightmap.png`. Reload the page to see 
 
 ## Ideas to extend
 - Texture splat based on height/slope; add props (trees/rocks) via scattered noise.
-- Chunked terrain + LOD for larger maps.
 - Mini-map or debug overlay showing camera height and slope.

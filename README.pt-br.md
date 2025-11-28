@@ -6,6 +6,7 @@ Demo leve para transformar um heightmap em escala de cinza em terreno 3D com Thr
 - `heightmaps/sample-heightmap.png`: gerado com seed 1337 (Simplex fBm, leve queda radial tipo ilha).
 - `scripts/generate_heightmap.py`: cria o heightmap usando ruído value/perlin/simplex (só precisa de Pillow).
 - `index.html`: carrega o heightmap, monta a geometria direto dos pixels e adiciona Pointer Lock (WASD + mouse).
+- `examples/`: galeria de demos mais avançados (veja abaixo).
 
 ## Pré-requisitos
 - Python 3 com Pillow disponível (para regenerar heightmaps).
@@ -30,7 +31,12 @@ Parâmetros em `scripts/generate_heightmap.py`:
 
 Saída sobrescreve `heightmaps/sample-heightmap.png`. Recarregue a página para ver.
 
-## Como o render funciona
+## Exemplos
+- `examples/example01`: Heightmap estático → malha de terreno com Pointer Lock (WASD + pulo), névoa, luzes e starfield. Sampler bilinear mantém o player colado ao terreno.
+- `examples/example02`: Heightmap procedural (Simplex fBM) calculado no carregamento; blend de Pointer Lock + Orbit; overlay de performance (FPS, draws, tris, GPU, heap).
+- `examples/example03`: Terreno procedural infinito em chunks com multi-LOD, mira e HUD, mais um NPC zumbi low-poly que persegue o player.
+
+## Como o render funciona (demo base)
 - Import map aponta `three` e `three/addons/` para o CDN unpkg, então não precisa build.
 - O heightmap vira um `Float32Array`; o `PlaneGeometry` recebe y pelos pixels em escala de cinza, normals são recalculadas.
 - Um sampler bilinear (`heightAt`) mantém a câmera “colada” ao chão usando os mesmos dados de altura da malha.
@@ -38,5 +44,4 @@ Saída sobrescreve `heightmaps/sample-heightmap.png`. Recarregue a página para 
 
 ## Ideias de extensão
 - Splat de texturas por altura/inclinação; espalhar props (árvores/rochas) via ruído.
-- Terreno em tiles com LOD para mapas maiores.
 - Mini-mapa ou overlay de debug mostrando altura e inclinação da câmera.

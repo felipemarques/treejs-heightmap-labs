@@ -66,6 +66,40 @@
 
     div.dashboardsContainer {
       width: 400px;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+
+    #crosshair {
+      position: fixed;
+      left: 50%;
+      top: 50%;
+      width: 18px;
+      height: 18px;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      z-index: 7;
+    }
+
+    #crosshair::before,
+    #crosshair::after {
+      content: "";
+      position: absolute;
+      background: rgba(255, 255, 255, 0.85);
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    #crosshair::before {
+      width: 14px;
+      height: 2px;
+    }
+
+    #crosshair::after {
+      width: 2px;
+      height: 14px;
     }
   </style>
 </head>
@@ -90,6 +124,7 @@
 
   <canvas id="c"></canvas>
   <a id="home-btn" href="/index.html">Voltar ao início</a>
+  <div id="crosshair"></div>
 
   <script type="importmap">
     {
@@ -393,10 +428,13 @@
         const dir = npcTarget.clone().sub(pos);
         dir.y = 0;
         const dist = dir.length();
-        if (dist > 0.1) {
+        const stopDistance = 1.5; // mantém ~1.5m da mira/jogador
+        if (dist > stopDistance) {
           dir.normalize();
-          const speed = 2.2;
+          const speed = 7.5;
           pos.addScaledVector(dir, speed * delta);
+          // Orienta o zumbi para a direção de perseguição.
+          npc.object.rotation.y = Math.atan2(dir.x, dir.z);
         }
         pos.y = sampleHeight(pos.x, pos.z) + 0.1;
       });
@@ -434,18 +472,12 @@
     animate();
 
     function spawnNPCs() {
-      const spawnPoints = [
-        new THREE.Vector3(10, 0, 10),
-        new THREE.Vector3(-12, 0, 8),
-        new THREE.Vector3(15, 0, -10),
-      ];
-      spawnPoints.forEach((p, idx) => {
-        const npc = createZombie({ scale: 1 + idx * 0.05 });
-        npc.object.position.copy(p);
-        npc.object.position.y = sampleHeight(p.x, p.z) + 0.1;
-        scene.add(npc.object);
-        npcs.push(npc);
-      });
+      const spawnPos = new THREE.Vector3(10, 0, 10);
+      const npc = createZombie({ scale: 1.05, speedFactor: 2.5 });
+      npc.object.position.copy(spawnPos);
+      npc.object.position.y = sampleHeight(spawnPos.x, spawnPos.z) + 0.1;
+      scene.add(npc.object);
+      npcs.push(npc);
     }
 
     function getGPUInfo(gl) {
