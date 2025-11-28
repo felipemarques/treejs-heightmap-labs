@@ -31,12 +31,30 @@
       #info strong {
         color: #89c2ff;
       }
+      #home-btn {
+        position: fixed;
+        top: 76px;
+        right: 12px;
+        padding: 8px 12px;
+        background: rgba(0, 0, 0, 0.55);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 8px;
+        color: #e8ecf5;
+        font-size: 13px;
+        text-decoration: none;
+        backdrop-filter: blur(6px);
+        z-index: 6;
+      }
+      #home-btn:hover {
+        background: rgba(255, 255, 255, 0.08);
+      }
       canvas {
         display: block;
       }
     </style>
   </head>
   <body>
+    <a id="home-btn" href="/index.html">Voltar ao início</a>
     <div id="info">
       <strong>Heightmap:</strong> heightmaps/sample-heightmap.png<br />
       Seed 1337 · Noise: Simplex (fBm)<br />

@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Three.js Heightmap Demo</title>
+  <style>
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #0f1116; color: #e5e7eb; }
+    #info {
+      position: absolute; top: 12px; left: 12px; padding: 10px 14px;
+      background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.08);
+      font: 14px/1.4 Arial, sans-serif; border-radius: 8px;
+    }
+    #perf {
+      position: absolute; top: 12px; left: 12px; padding: 10px 14px;
+      background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.08);
+      font: 12px/1.4 monospace; border-radius: 8px; min-width: 180px;
+      color: #cbd5e1; z-index: 5;
+    }
+    #home-btn {
+      position: absolute; top: 76px; right: 12px;
+      padding: 8px 12px; background: rgba(0,0,0,0.55);
+      border: 1px solid rgba(255,255,255,0.12); border-radius: 8px;
+      color: #e5e7eb; font: 13px/1.2 Arial, sans-serif; text-decoration: none;
+      backdrop-filter: blur(6px); z-index: 6;
+    }
+    #home-btn:hover { background: rgba(255,255,255,0.08); }
+    a { color: #67e8f9; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div id="info">
+    Heightmap gerado em tempo real com ruído Simplex (fBM).<br />
+    Clique no canvas para capturar o mouse · WASD move | Espaço salta · Scroll gira quando solto.
+  </div>
+  <canvas id="c"></canvas>
+  <a id="home-btn" href="/index.html">Voltar ao início</a>
+  <div id="perf">
+    <div>FPS: --</div>
+    <div>ms: --</div>
+    <div>Draws: -- | Tris: --</div>
+    <div>Geom/Mats: -- / --</div>
+    <div>GPU: --</div>
+    <div>Mem: --</div>
+  </div>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+    import Stats from 'three/addons/libs/stats.module.js';
+    import { createNoise2D } from 'https://cdn.jsdelivr.net/npm/simplex-noise@4.0.1/+esm';
+
+    const canvas = document.getElementById('c');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setSize(window.innerWidth, window.innerHeight);
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0f1116);
+
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(80, 45, 80);
+
+    const mapWidth = 256;
+    const mapHeight = 256;
+    const terrainSize = 200;
+    const maxElevation = 40;
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.target.set(0, 10, 0);
+
+    const fpControls = new PointerLockControls(camera, renderer.domElement);
+    fpControls.getObject().position.set(0, maxElevation + 10, 40);
+    camera.position.copy(fpControls.getObject().position);
+    scene.add(fpControls.getObject());
+    controls.target.copy(fpControls.getObject().position);
+
+    scene.add(new THREE.AmbientLight(0xffffff, 0.35));
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.9);
+    dirLight.position.set(80, 120, 40);
+    scene.add(dirLight);
+
+    const { data: heightmap } = generateHeightmap(mapWidth, mapHeight);
+
+    const geometry = new THREE.PlaneGeometry(terrainSize, terrainSize, mapWidth - 1, mapHeight - 1);
+    geometry.rotateX(-Math.PI / 2);
+    applyHeightmap(geometry, heightmap, maxElevation);
+
+    const material = new THREE.MeshStandardMaterial({
+      vertexColors: true,
+      flatShading: false,
+      roughness: 0.9,
+      metalness: 0.0,
+    });
+
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.receiveShadow = false;
+    scene.add(mesh);
+
+    window.addEventListener('resize', onResize);
+
+    const stats = new Stats();
+    stats.showPanel(0); // fps
+    stats.dom.style.position = 'absolute';
+    stats.dom.style.top = '12px';
+    stats.dom.style.left = 'calc(50% - 40px)';
+    document.body.appendChild(stats.dom);
+
+    const perfEl = document.getElementById('perf');
+    const gl = renderer.getContext();
+    const gpuInfo = getGPUInfo(gl);
+
+    const clock = new THREE.Clock();
+    const keyState = { forward: false, backward: false, left: false, right: false, jump: false };
+    const velocity = new THREE.Vector3(); // only Y used for gravity/jump
+    const direction = new THREE.Vector3();
+    const forward = new THREE.Vector3();
+    const right = new THREE.Vector3();
+    const tmpDir = new THREE.Vector3();
+    const up = new THREE.Vector3(0, 1, 0);
+    let isOnGround = false;
+    const params = { moveSpeed: 35, jumpSpeed: 12, gravity: 35, eyeHeight: 6 };
+
+    setupPointerLock();
+    setupKeys();
+    animate();
+
+    function animate() {
+      const delta = clock.getDelta();
+      stats.begin();
+      requestAnimationFrame(animate);
+      updateMovement(delta);
+      if (controls.enabled) {
+        controls.update();
+      }
+      renderer.render(scene, camera);
+      stats.end();
+      updatePerfOverlay();
+    }
+
+    function onResize() {
+      const { innerWidth: w, innerHeight: h } = window;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+    }
+
+    function updatePerfOverlay() {
+      const info = renderer.info;
+      const fps = Math.round(stats.getFPS ? stats.getFPS() : (1000 / stats.dom.children[0].innerText || 0));
+      const ms = Math.round(stats.dom.firstChild && stats.dom.firstChild.textContent ? parseFloat(stats.dom.firstChild.textContent) : stats.dom ? stats.dom.textContent : 0);
+
+      const mem = performance.memory
+        ? `${(performance.memory.usedJSHeapSize / 1048576).toFixed(1)} / ${(performance.memory.jsHeapSizeLimit / 1048576).toFixed(0)} MB`
+        : 'n/d';
+
+      perfEl.innerHTML = `
+        <div>FPS: ${fps || '--'}</div>
+        <div>ms: ${Number.isFinite(ms) ? ms : '--'}</div>
+        <div>Draws: ${info.render.calls} | Tris: ${info.render.triangles}</div>
+        <div>Geom/Mats: ${info.memory.geometries} / ${info.memory.textures}</div>
+        <div>GPU: ${gpuInfo}</div>
+        <div>Mem: ${mem}</div>
+      `;
+    }
+
+    function setupPointerLock() {
+      const info = document.getElementById('info');
+      renderer.domElement.addEventListener('click', (e) => {
+        e.preventDefault();
+        fpControls.lock();
+      });
+      fpControls.addEventListener('lock', () => {
+        info.style.opacity = '0.75';
+        controls.enabled = false;
+      });
+      fpControls.addEventListener('unlock', () => {
+        info.style.opacity = '1';
+        controls.enabled = true;
+        controls.target.copy(fpControls.getObject().position);
+        controls.update();
+      });
+    }
+
+    function setupKeys() {
+      const handler = (pressed) => (event) => {
+        switch (event.code) {
+          case 'KeyW':
+          case 'ArrowUp':
+            keyState.forward = pressed;
+            break;
+          case 'KeyS':
+          case 'ArrowDown':
+            keyState.backward = pressed;
+            break;
+          case 'KeyA':
+          case 'ArrowLeft':
+            keyState.left = pressed;
+            break;
+          case 'KeyD':
+          case 'ArrowRight':
+            keyState.right = pressed;
+            break;
+          case 'Space':
+            keyState.jump = pressed;
+            break;
+        }
+      };
+      document.addEventListener('keydown', handler(true));
+      document.addEventListener('keyup', handler(false));
+    }
+
+    function heightAt(x, z) {
+      const half = terrainSize / 2;
+      const u = THREE.MathUtils.clamp((x + half) / terrainSize, 0, 1);
+      const v = THREE.MathUtils.clamp((z + half) / terrainSize, 0, 1);
+      const px = u * (mapWidth - 1);
+      const pz = v * (mapHeight - 1);
+      const x0 = Math.floor(px);
+      const z0 = Math.floor(pz);
+      const x1 = Math.min(x0 + 1, mapWidth - 1);
+      const z1 = Math.min(z0 + 1, mapHeight - 1);
+      const xf = px - x0;
+      const zf = pz - z0;
+      const i = z0 * mapWidth + x0;
+      const i2 = z0 * mapWidth + x1;
+      const i3 = z1 * mapWidth + x0;
+      const i4 = z1 * mapWidth + x1;
+      const a = THREE.MathUtils.lerp(heightmap[i], heightmap[i2], xf);
+      const b = THREE.MathUtils.lerp(heightmap[i3], heightmap[i4], xf);
+      return THREE.MathUtils.lerp(a, b, zf) * maxElevation;
+    }
+
+    function updateMovement(delta) {
+      if (!fpControls.isLocked) return;
+      direction.set(
+        (keyState.right ? 1 : 0) - (keyState.left ? 1 : 0),
+        0,
+        (keyState.forward ? 1 : 0) - (keyState.backward ? 1 : 0)
+      ).normalize();
+
+      const pos = fpControls.getObject().position;
+
+      if (direction.lengthSq() > 0) {
+        forward.copy(fpControls.getDirection(tmpDir)).setY(0).normalize();
+        right.crossVectors(forward, up).normalize();
+        pos.addScaledVector(forward, direction.z * params.moveSpeed * delta);
+        pos.addScaledVector(right, direction.x * params.moveSpeed * delta);
+      }
+
+      velocity.y -= params.gravity * delta;
+
+      const ground = heightAt(pos.x, pos.z);
+      const minY = ground + params.eyeHeight;
+
+      if (keyState.jump && isOnGround) {
+        velocity.y = params.jumpSpeed;
+        isOnGround = false;
+      }
+
+      if (pos.y + velocity.y * delta <= minY) {
+        pos.y = minY;
+        velocity.y = 0;
+        isOnGround = true;
+      } else {
+        pos.y += velocity.y * delta;
+        isOnGround = false;
+      }
+
+      pos.x = THREE.MathUtils.clamp(pos.x, -terrainSize / 2 + 1, terrainSize / 2 - 1);
+      pos.z = THREE.MathUtils.clamp(pos.z, -terrainSize / 2 + 1, terrainSize / 2 - 1);
+    }
+
+    // Gera heightmap simples com fBM de ruído Simplex.
+    function generateHeightmap(width, height) {
+      const noise2D = createNoise2D();
+      const data = new Float32Array(width * height);
+      const octaves = 4;
+      const lacunarity = 2.0;
+      const persistence = 0.5;
+      const baseFrequency = 0.02;
+
+      let min = Infinity;
+      let max = -Infinity;
+
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          let amplitude = 1;
+          let frequency = baseFrequency;
+          let value = 0;
+
+          for (let o = 0; o < octaves; o++) {
+            value += amplitude * noise2D(x * frequency, y * frequency);
+            amplitude *= persistence;
+            frequency *= lacunarity;
+          }
+
+          const idx = y * width + x;
+          data[idx] = value;
+          min = Math.min(min, value);
+          max = Math.max(max, value);
+        }
+      }
+
+      // Normaliza para 0..1
+      const range = max - min || 1;
+      for (let i = 0; i < data.length; i++) {
+        data[i] = (data[i] - min) / range;
+      }
+
+      return { data, min, max };
+    }
+
+    function applyHeightmap(geometry, heights, maxHeight) {
+      const pos = geometry.attributes.position;
+      const count = pos.count;
+      const colors = new Float32Array(count * 3);
+
+      for (let i = 0; i < count; i++) {
+        const h = heights[i];
+        pos.setY(i, h * maxHeight);
+        const { r, g, b } = sampleGradient(h);
+        colors[i * 3 + 0] = r;
+        colors[i * 3 + 1] = g;
+        colors[i * 3 + 2] = b;
+      }
+
+      geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+      pos.needsUpdate = true;
+      geometry.computeVertexNormals();
+    }
+
+    // Coloração simples por altitude: água -> grama -> rocha -> neve.
+    function sampleGradient(h) {
+      if (h < 0.35) return lerpColor([0x1f, 0x4f, 0x83], [0x2b, 0x73, 0xb6], h / 0.35);
+      if (h < 0.55) return lerpColor([0x2c, 0x6e, 0x49], [0x4f, 0xa2, 0x5b], (h - 0.35) / 0.2);
+      if (h < 0.75) return lerpColor([0x73, 0x68, 0x57], [0xb3, 0x9c, 0x7a], (h - 0.55) / 0.2);
+      return lerpColor([0xe5, 0xe7, 0xeb], [0xff, 0xff, 0xff], (h - 0.75) / 0.25);
+    }
+
+    function lerpColor(c1, c2, t) {
+      const k = Math.max(0, Math.min(1, t));
+      const r = c1[0] + (c2[0] - c1[0]) * k;
+      const g = c1[1] + (c2[1] - c1[1]) * k;
+      const b = c1[2] + (c2[2] - c1[2]) * k;
+      return { r: r / 255, g: g / 255, b: b / 255 };
+    }
+
+    function getGPUInfo(gl) {
+      const ext = gl.getExtension('WEBGL_debug_renderer_info');
+      if (ext) {
+        const vendor = gl.getParameter(ext.UNMASKED_VENDOR_WEBGL);
+        const rendererName = gl.getParameter(ext.UNMASKED_RENDERER_WEBGL);
+        return `${vendor} | ${rendererName}`;
+      }
+      return 'n/d';
+    }
+  </script>
+</body>
+</html>
