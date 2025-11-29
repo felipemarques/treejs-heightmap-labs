@@ -324,6 +324,8 @@
         <div>GPU: ${gpuInfo}</div>
         <div>CPU cores: ${cpuInfo}</div>
         <div>Heap: ${mem}</div>
+        <div>Altura do pulo: ${heightAboveGround.toFixed(2)} m</div>
+        <div>Altura máx. registrada: ${maxJumpHeight.toFixed(2)} m</div>
         <div>FPS: ${fps}</div>
       `;
     }
@@ -331,6 +333,9 @@
     const keyState = { forward: false, backward: false, left: false, right: false, jump: false };
     let isOnGround = false;
     let verticalVel = 0;
+    let heightAboveGround = 0;
+    let maxJumpHeight = 0;
+    const MAX_JUMP_HEIGHT = 10; // metros acima do solo
     const npcTarget = new THREE.Vector3();
 
     function setupPointerLock() {
@@ -401,19 +406,28 @@
       }
 
       // Gravity / jump
-      verticalVel -= 25 * delta;
+      verticalVel -= 14 * delta;
       const pos = fpControls.getObject().position;
       const ground = sampleHeight(pos.x, pos.z);
       const minY = ground + EYE_HEIGHT;
       if (keyState.jump && isOnGround) {
-        verticalVel = 9;
+        verticalVel = 7;
         isOnGround = false;
       }
       pos.y += verticalVel;
+      const maxY = minY + MAX_JUMP_HEIGHT;
+      if (pos.y > maxY) {
+        pos.y = maxY;
+        verticalVel = Math.min(verticalVel, 0);
+      }
       if (pos.y < minY) {
         pos.y = minY;
         verticalVel = 0;
         isOnGround = true;
+      }
+      heightAboveGround = Math.max(0, pos.y - minY);
+      if (heightAboveGround > maxJumpHeight) {
+        maxJumpHeight = heightAboveGround;
       }
     }
 
