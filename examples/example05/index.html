@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Example 04 · Terreno com planícies, chunks, LOD e casas voxel</title>
+  <title>Example 05 · Terreno com planícies, chunks, LOD e casas voxel</title>
   <style>
     html,
     body {
@@ -409,26 +409,34 @@
         pos.addScaledVector(right, dirX * speed * delta);
       }
 
-      verticalVel -= 14 * delta;
+      // Gravity / jump (Matching example01 physics)
+      const gravity = 35;
+      const jumpSpeed = 18;
+
+      verticalVel -= gravity * delta;
+
       const ground = heightAt(pos.x, pos.z);
       const minY = ground + EYE_HEIGHT;
+
       if (keyState.jump && isOnGround) {
-        verticalVel = 7;
+        verticalVel = jumpSpeed;
         isOnGround = false;
       }
-      pos.y += verticalVel;
-      const maxY = minY + MAX_JUMP_HEIGHT;
-      if (pos.y > maxY) {
-        pos.y = maxY;
-        verticalVel = Math.min(verticalVel, 0);
-      }
-      if (pos.y < minY) {
+
+      // Apply velocity
+      if (pos.y + verticalVel * delta <= minY) {
         pos.y = minY;
         verticalVel = 0;
         isOnGround = true;
+      } else {
+        pos.y += verticalVel * delta;
+        isOnGround = false;
       }
+
       heightAboveGround = Math.max(0, pos.y - minY);
-      if (heightAboveGround > maxJumpHeight) maxJumpHeight = heightAboveGround;
+      if (heightAboveGround > maxJumpHeight) {
+        maxJumpHeight = heightAboveGround;
+      }
     }
 
     function animate() {
