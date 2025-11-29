@@ -35,6 +35,7 @@ Saída sobrescreve `heightmaps/sample-heightmap.png`. Recarregue a página para 
 - `examples/example01`: Heightmap estático → malha de terreno com Pointer Lock (WASD + pulo), névoa, luzes e starfield. Sampler bilinear mantém o player colado ao terreno.
 - `examples/example02`: Heightmap procedural (Simplex fBM) calculado no carregamento; blend de Pointer Lock + Orbit; overlay de performance (FPS, draws, tris, GPU, heap).
 - `examples/example03`: Terreno procedural infinito em chunks com multi-LOD, mira e HUD, mais um NPC zumbi low-poly que persegue o player.
+- `examples/example04`: Terreno procedural com planícies por SEED transmitido em chunks com LOD; seed configurável via hash; casas voxel espalhadas nas planícies; Pointer Lock e HUD com altura do pulo.
 
 ## Como o render funciona (demo base)
 - Import map aponta `three` e `three/addons/` para o CDN unpkg, então não precisa build.

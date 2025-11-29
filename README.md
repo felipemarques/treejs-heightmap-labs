@@ -35,6 +35,7 @@ The output overwrites `heightmaps/sample-heightmap.png`. Reload the page to see 
 - `examples/example01`: Static heightmap → terrain mesh with Pointer Lock (WASD + jump), fog, lights, and starfield backdrop. Uses bilinear sampling to keep the player grounded.
 - `examples/example02`: Procedural Simplex fBM heightmap, updated at load-time; Pointer Lock + Orbit blend; performance overlay (FPS, draws, tris, GPU, heap).
 - `examples/example03`: Infinite procedural terrain streamed in chunks with multi-LOD meshes, central crosshair + HUD, and a low-poly zombie NPC that pursues the player.
+- `examples/example04`: Seeded terrain with injected flat areas (plains) streamed in chunks with LOD; configurable seed via URL hash; voxel houses spawned on plains; Pointer Lock controls and HUD (jump heights).
 
 ## How the rendering works (base demo)
 - Import map points `three` and `three/addons/` to the unpkg CDN, so no build step needed.

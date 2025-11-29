@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Example 04 · Terreno com planícies, chunks, LOD e casas voxel</title>
+  <style>
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #0b0f17; color: #e5e7eb; }
+    #info {
+      position: absolute; top: 12px; left: 12px; padding: 10px 14px;
+      background: rgba(0,0,0,0.55); border: 1px solid rgba(255,255,255,0.08);
+      font: 14px/1.4 Arial, sans-serif; border-radius: 8px; max-width: 380px;
+    }
+    #hud {
+      position: absolute; top: 86px; left: 12px; padding: 10px 14px;
+      background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.08);
+      font: 12px/1.4 monospace; border-radius: 8px; min-width: 240px;
+      color: #cbd5e1;
+    }
+    #home-btn {
+      position: absolute; top: 20px; right: 12px;
+      padding: 8px 12px; background: rgba(0,0,0,0.55);
+      border: 1px solid rgba(255,255,255,0.12); border-radius: 8px;
+      color: #e5e7eb; font: 13px/1.2 Arial, sans-serif; text-decoration: none;
+      backdrop-filter: blur(6px); z-index: 6;
+    }
+    #home-btn:hover { background: rgba(255,255,255,0.08); }
+    #crosshair {
+      position: fixed; left: 50%; top: 50%; width: 18px; height: 18px;
+      transform: translate(-50%, -50%); pointer-events: none; z-index: 7;
+    }
+    #crosshair::before, #crosshair::after {
+      content: ""; position: absolute; background: rgba(255,255,255,0.85);
+      left: 50%; top: 50%; transform: translate(-50%, -50%);
+    }
+    #crosshair::before { width: 14px; height: 2px; }
+    #crosshair::after { width: 2px; height: 14px; }
+  </style>
+</head>
+<body>
+  <div id="info">
+    Terreno procedural com planícies determinísticas (por SEED), streaming de chunks com LOD e casas voxel.<br />
+    Clique no canvas para capturar o mouse · WASD move | Espaço salta · Scroll gira quando solto.<br />
+    Ajuste o SEED via hash da URL, ex: <code>#seed=minhaSeed123</code>.
+  </div>
+  <div id="hud">
+    <div>Seed: --</div>
+    <div>Chunks: --</div>
+    <div>Planícies: --</div>
+    <div>Casas: --</div>
+    <div>Altura do pulo: --</div>
+    <div>Altura máx.: --</div>
+    <div>FPS: --</div>
+  </div>
+  <a id="home-btn" href="/index.html">Voltar ao início</a>
+  <div id="crosshair"></div>
+  <canvas id="c"></canvas>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+    import Stats from 'three/addons/libs/stats.module.js';
+    import { createNoise2D } from 'https://cdn.jsdelivr.net/npm/simplex-noise@4.0.1/+esm';
+    import alea from 'https://cdn.jsdelivr.net/npm/alea@1.0.0/+esm';
+    import { createTudorHouse } from './example04/houses/tudorHouse.js';
+    import { createColorfulHouse } from './example04/houses/colorfulHouse.js';
+    import { createCottageHouse } from './example04/houses/cottageHouse.js';
+
+    const canvas = document.getElementById('c');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setSize(window.innerWidth, window.innerHeight);
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0b0f17);
+
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 4000);
+    camera.position.set(120, 70, 120);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.target.set(0, 14, 0);
+
+    const fpControls = new PointerLockControls(camera, renderer.domElement);
+    fpControls.getObject().position.set(0, 14, 80);
+    scene.add(fpControls.getObject());
+    controls.target.copy(fpControls.getObject().position);
+
+    scene.add(new THREE.HemisphereLight(0xa0b9ff, 0x101820, 0.75));
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.9);
+    dirLight.position.set(300, 500, 200);
+    scene.add(dirLight);
+
+    const CHUNK_SIZE = 120;
+    const LOD_LEVELS = [
+      { segments: 64, distance: CHUNK_SIZE * 0.7 },
+      { segments: 32, distance: CHUNK_SIZE * 1.4 },
+      { segments: 16, distance: CHUNK_SIZE * 2.6 },
+      { segments: 8, distance: CHUNK_SIZE * 4.5 },
+    ];
+    const HEIGHT_SCALE = 32;
+    const CHUNK_RADIUS = 4;
+    const PLAINS_SPREAD = 1000;
+    const FLAT_RADIUS = 20;
+    const NUM_PLAINS = 14;
+    const EYE_HEIGHT = 6;
+    const MAX_JUMP_HEIGHT = 10;
+
+    const hudEl = document.getElementById('hud');
+    const stats = new Stats();
+    stats.showPanel(0);
+    stats.dom.style.position = 'absolute';
+    stats.dom.style.top = '12px';
+    stats.dom.style.left = 'calc(50% - 40px)';
+    document.body.appendChild(stats.dom);
+
+    const infoSeed = parseSeedFromHash() || 'seed-example04';
+    const noise2D = createNoise2D(alea(infoSeed));
+    const plains = generatePlains(infoSeed);
+    const housesPlaced = new Set();
+
+    const chunkCache = new Map();
+    const materialCache = new Map();
+    const clock = new THREE.Clock();
+    const tmpDir = new THREE.Vector3();
+    const forward = new THREE.Vector3();
+    const right = new THREE.Vector3();
+    const npcTarget = new THREE.Vector3();
+    const keyState = { forward: false, backward: false, left: false, right: false, jump: false, run: false };
+    let isOnGround = false;
+    let verticalVel = 0;
+    let heightAboveGround = 0;
+    let maxJumpHeight = 0;
+
+    setupPointerLock();
+    setupKeys();
+    updateChunks();
+    animate();
+
+    function material(key) {
+      if (!materialCache.has(key)) {
+        materialCache.set(
+          key,
+          new THREE.MeshStandardMaterial({
+            vertexColors: true,
+            flatShading: false,
+            roughness: 0.85,
+            metalness: 0.0,
+          })
+        );
+      }
+      return materialCache.get(key);
+    }
+
+    function createChunk(ix, iz) {
+      const key = `${ix},${iz}`;
+      if (chunkCache.has(key)) return chunkCache.get(key);
+      const centerX = ix * CHUNK_SIZE + CHUNK_SIZE / 2;
+      const centerZ = iz * CHUNK_SIZE + CHUNK_SIZE / 2;
+      const lod = new THREE.LOD();
+
+      for (const level of LOD_LEVELS) {
+        const geom = new THREE.PlaneGeometry(CHUNK_SIZE, CHUNK_SIZE, level.segments, level.segments);
+        geom.rotateX(-Math.PI / 2);
+        const pos = geom.attributes.position;
+        const colors = new Float32Array(pos.count * 3);
+        for (let i = 0; i < pos.count; i++) {
+          const vx = pos.getX(i) + centerX;
+          const vz = pos.getZ(i) + centerZ;
+          const h = sampleHeight(vx, vz) * HEIGHT_SCALE;
+          pos.setY(i, h);
+          const c = sampleGradient(h / HEIGHT_SCALE);
+          colors[i * 3 + 0] = c.r;
+          colors[i * 3 + 1] = c.g;
+          colors[i * 3 + 2] = c.b;
+        }
+        geom.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+        geom.computeVertexNormals();
+        const mesh = new THREE.Mesh(geom, material('terrain'));
+        mesh.position.set(centerX, 0, centerZ);
+        lod.addLevel(mesh, level.distance);
+      }
+
+      scene.add(lod);
+      const chunk = { lod, ix, iz, houses: [], centerX, centerZ };
+      chunkCache.set(key, chunk);
+      // Spawn houses if chunk contém planície
+      spawnHousesInChunk(chunk);
+      return chunk;
+    }
+
+    function disposeChunk(chunk) {
+      if (!chunk || !chunk.lod) return;
+      chunk.lod.levels.forEach(({ object }) => object.geometry && object.geometry.dispose());
+      chunk.houses.forEach((h) => scene.remove(h));
+      scene.remove(chunk.lod);
+    }
+
+    function updateChunks() {
+      const ix = Math.floor(camera.position.x / CHUNK_SIZE);
+      const iz = Math.floor(camera.position.z / CHUNK_SIZE);
+      const needed = new Set();
+      for (let dz = -CHUNK_RADIUS; dz <= CHUNK_RADIUS; dz++) {
+        for (let dx = -CHUNK_RADIUS; dx <= CHUNK_RADIUS; dx++) {
+          const cx = ix + dx;
+          const cz = iz + dz;
+          needed.add(`${cx},${cz}`);
+          createChunk(cx, cz);
+        }
+      }
+      for (const [key, chunk] of chunkCache.entries()) {
+        if (!needed.has(key)) {
+          disposeChunk(chunk);
+          chunkCache.delete(key);
+        }
+      }
+    }
+
+    function generatePlains(seedStr) {
+      const rand = alea(seedStr + '-plains');
+      const result = [];
+      for (let i = 0; i < NUM_PLAINS; i++) {
+        const x = (rand() - 0.5) * PLAINS_SPREAD;
+        const z = (rand() - 0.5) * PLAINS_SPREAD;
+        const radius = FLAT_RADIUS + rand() * 12;
+        const height = 0;
+        result.push({ x, z, radius, height });
+      }
+      return result;
+    }
+
+    function sampleHeight(x, z) {
+      const nx = x / 280;
+      const nz = z / 280;
+      let h =
+        0.9 * noise2D(nx, nz) +
+        0.55 * noise2D(nx * 2.1, nz * 2.1) +
+        0.32 * noise2D(nx * 4.2, nz * 4.2);
+
+      for (const p of plains) {
+        const dx = x - p.x;
+        const dz = z - p.z;
+        const d = Math.sqrt(dx * dx + dz * dz);
+        if (d < p.radius) {
+          const t = Math.max(0, 1 - d / p.radius);
+          h = THREE.MathUtils.lerp(h, p.height, t * 0.9);
+        }
+      }
+      return (h + 1) / 2;
+    }
+
+    function sampleGradient(h) {
+      const t = THREE.MathUtils.clamp(h, 0, 1);
+      if (t < 0.35) return lerp([0x1b, 0x3b, 0x6f], [0x2e, 0x6d, 0xb5], t / 0.35);
+      if (t < 0.55) return lerp([0x2d, 0x6a, 0x3f], [0x54, 0xa8, 0x63], (t - 0.35) / 0.2);
+      if (t < 0.8) return lerp([0x73, 0x68, 0x57], [0xb1, 0xa3, 0x83], (t - 0.55) / 0.25);
+      return lerp([0xe8, 0xeb, 0xf0], [0xff, 0xff, 0xff], (t - 0.8) / 0.2);
+    }
+
+    function lerp(c1, c2, t) {
+      const k = Math.max(0, Math.min(1, t));
+      return { r: (c1[0] + (c2[0] - c1[0]) * k) / 255, g: (c1[1] + (c2[1] - c1[1]) * k) / 255, b: (c1[2] + (c2[2] - c1[2]) * k) / 255 };
+    }
+
+    function setupPointerLock() {
+      const infoEl = document.getElementById('info');
+      renderer.domElement.addEventListener('click', (e) => { e.preventDefault(); fpControls.lock(); });
+      fpControls.addEventListener('lock', () => { infoEl.style.opacity = '0.75'; controls.enabled = false; });
+      fpControls.addEventListener('unlock', () => {
+        infoEl.style.opacity = '1';
+        controls.enabled = true;
+        controls.target.copy(fpControls.getObject().position);
+        controls.update();
+      });
+    }
+
+    function setupKeys() {
+      const handler = (pressed) => (event) => {
+        switch (event.code) {
+          case 'KeyW': case 'ArrowUp': keyState.forward = pressed; break;
+          case 'KeyS': case 'ArrowDown': keyState.backward = pressed; break;
+          case 'KeyA': case 'ArrowLeft': keyState.left = pressed; break;
+          case 'KeyD': case 'ArrowRight': keyState.right = pressed; break;
+          case 'Space': keyState.jump = pressed; break;
+          case 'ShiftLeft':
+          case 'ShiftRight':
+            keyState.run = pressed;
+            break;
+        }
+      };
+      document.addEventListener('keydown', handler(true));
+      document.addEventListener('keyup', handler(false));
+    }
+
+    function spawnHousesInChunk(chunk) {
+      const half = CHUNK_SIZE / 2;
+      plains.forEach((p, idx) => {
+        if (housesPlaced.has(idx)) return;
+        const insideX = p.x >= chunk.centerX - half && p.x <= chunk.centerX + half;
+        const insideZ = p.z >= chunk.centerZ - half && p.z <= chunk.centerZ + half;
+        if (insideX && insideZ) {
+          const height = sampleHeight(p.x, p.z) * HEIGHT_SCALE;
+          const house = pickHouse(idx);
+          house.position.set(p.x, height, p.z);
+          house.rotation.y = alea(`${infoSeed}-house-${idx}`)() * Math.PI * 2;
+          scene.add(house);
+          chunk.houses.push(house);
+          housesPlaced.add(idx);
+        }
+      });
+    }
+
+    function pickHouse(seedIdx) {
+      const r = alea(`${infoSeed}-house-type-${seedIdx}`)();
+      if (r < 0.33) return createTudorHouse();
+      if (r < 0.66) return createColorfulHouse();
+      return createCottageHouse();
+    }
+
+    function heightAt(x, z) {
+      // Bilinear sample via noise (no texture lookup)
+      const eps = 0.001;
+      const h00 = sampleHeight(x, z);
+      const h10 = sampleHeight(x + eps, z);
+      const h01 = sampleHeight(x, z + eps);
+      const h11 = sampleHeight(x + eps, z + eps);
+      const a = THREE.MathUtils.lerp(h00, h10, 0.5);
+      const b = THREE.MathUtils.lerp(h01, h11, 0.5);
+      return THREE.MathUtils.lerp(a, b, 0.5) * HEIGHT_SCALE;
+    }
+
+    function updateMovement(delta) {
+      if (!fpControls.isLocked) return;
+
+      const dirX = (keyState.right ? 1 : 0) - (keyState.left ? 1 : 0);
+      const dirZ = (keyState.forward ? 1 : 0) - (keyState.backward ? 1 : 0);
+      const hasInput = dirX !== 0 || dirZ !== 0;
+      const speed = keyState.run ? 38 : 16;
+      const pos = fpControls.getObject().position;
+
+      if (hasInput) {
+        forward.copy(fpControls.getDirection(tmpDir)).setY(0).normalize();
+        right.crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
+        pos.addScaledVector(forward, dirZ * speed * delta);
+        pos.addScaledVector(right, dirX * speed * delta);
+      }
+
+      verticalVel -= 14 * delta;
+      const ground = heightAt(pos.x, pos.z);
+      const minY = ground + EYE_HEIGHT;
+      if (keyState.jump && isOnGround) {
+        verticalVel = 7;
+        isOnGround = false;
+      }
+      pos.y += verticalVel;
+      const maxY = minY + MAX_JUMP_HEIGHT;
+      if (pos.y > maxY) {
+        pos.y = maxY;
+        verticalVel = Math.min(verticalVel, 0);
+      }
+      if (pos.y < minY) {
+        pos.y = minY;
+        verticalVel = 0;
+        isOnGround = true;
+      }
+      heightAboveGround = Math.max(0, pos.y - minY);
+      if (heightAboveGround > maxJumpHeight) maxJumpHeight = heightAboveGround;
+    }
+
+    function animate() {
+      const delta = clock.getDelta();
+      stats.begin();
+      requestAnimationFrame(animate);
+      updateMovement(delta);
+      updateChunks();
+      if (!fpControls.isLocked) controls.update();
+      renderer.render(scene, camera);
+      stats.end();
+      updateHud();
+    }
+
+    function updateHud() {
+      const fps = Math.round(stats.getFPS ? stats.getFPS() : 0) || '--';
+      hudEl.innerHTML = `
+        <div>Seed: ${infoSeed}</div>
+        <div>Chunks: ${chunkCache.size}</div>
+        <div>Planícies: ${plains.length}</div>
+        <div>Casas colocadas: ${housesPlaced.size}</div>
+        <div>Altura do pulo: ${heightAboveGround.toFixed(2)} m</div>
+        <div>Altura máx.: ${maxJumpHeight.toFixed(2)} m</div>
+        <div>FPS: ${fps}</div>
+      `;
+    }
+
+    function onResize() {
+      const { innerWidth: w, innerHeight: h } = window;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+    }
+    window.addEventListener('resize', onResize);
+
+    function parseSeedFromHash() {
+      const hash = window.location.hash.slice(1);
+      if (!hash) return null;
+      const params = new URLSearchParams(hash.replace(/&/g, '&'));
+      return params.get('seed') || hash.split('seed=')[1] || null;
+    }
+  </script>
+</body>
+</html>
