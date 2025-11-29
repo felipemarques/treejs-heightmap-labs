@@ -25,7 +25,8 @@
       font: 14px/1.4 Arial, sans-serif;
       border-radius: 8px;
       max-width: 320px;
-      pointer-events: none; /* Let clicks pass through for controls */
+      pointer-events: none;
+      /* Let clicks pass through for controls */
     }
 
     #hud {
@@ -104,6 +105,11 @@
       width: 2px;
       height: 14px;
     }
+
+    /* Custom GUI positioning */
+    .lil-gui.root {
+      top: 30px !important;
+    }
   </style>
 </head>
 
@@ -112,9 +118,9 @@
   <div class="dashboardsContainer">
 
     <div id="info">
-      <strong>Example 04</strong><br/>
+      <strong>Example 04</strong><br />
       Geração procedural com Seed e Biomas.<br />
-      Use o painel à direita para configurar o terreno.<br/>
+      Use o painel à direita para configurar o terreno.<br />
       Clique no canvas para capturar o mouse (WASD + Espaço).
     </div>
 
@@ -155,16 +161,16 @@
       scale: 1.0,
       heightMultiplier: 60,
       exponent: 1.2,
-      
+
       // FBM Noise
       octaves: 4,
       persistence: 0.5,
       lacunarity: 2.0,
-      
+
       // Biome / Mask
       biomeScale: 0.3,
       maskOffset: 0.0,
-      
+
       // Helper
       randomSeed: () => {
         params.seed = Math.random().toString(36).substring(7);
@@ -177,12 +183,12 @@
     };
 
     let noise2D;
-    
+
     function updateNoise() {
       const rng = alea(params.seed);
       noise2D = createNoise2D(rng);
     }
-    
+
     // Inicializa noise
     updateNoise();
 
@@ -204,7 +210,7 @@
     controls.target.set(0, 10, 0);
 
     const fpControls = new PointerLockControls(camera, renderer.domElement);
-    
+
     // Lights
     scene.add(new THREE.HemisphereLight(0xa0b9ff, 0x101820, 0.5));
     const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
@@ -220,15 +226,15 @@
       { segments: 16, distance: CHUNK_SIZE * 6.0 },
       { segments: 8, distance: CHUNK_SIZE * 10.0 },
     ];
-    const CHUNK_RADIUS = 4; 
+    const CHUNK_RADIUS = 4;
     const EYE_HEIGHT = 2.5;
 
     const chunkCache = new Map();
     const materialCache = new Map();
-    
+
     // --- Height Sampling Logic ---
     function sampleHeight(x, z) {
-      const nx = x / 200; 
+      const nx = x / 200;
       const nz = z / 200;
 
       // 1. Biome Mask (Planície vs Montanha)
@@ -247,7 +253,7 @@
       let noiseSum = 0;
       let amplitudeSum = 0;
 
-      for(let i=0; i<params.octaves; i++) {
+      for (let i = 0; i < params.octaves; i++) {
         noiseSum += amplitude * noise2D(nx * params.scale * frequency, nz * params.scale * frequency);
         amplitudeSum += amplitude;
         amplitude *= params.persistence;
@@ -257,20 +263,20 @@
       // Normalize roughly
       let h = noiseSum / amplitudeSum; // -1..1
       h = (h + 1) / 2; // 0..1
-      
+
       // Apply exponent (sharpen peaks or flatten valleys)
       h = Math.pow(h, params.exponent);
 
       // 3. Combine
       // Se mask é 0 (planície), queremos altura baixa e pouca variação.
       // Se mask é 1 (montanha), queremos altura total.
-      
+
       // Base height for plains (variação suave)
       const plainsHeight = (noise2D(nx * 10, nz * 10) * 0.05 + 0.1) * params.heightMultiplier * 0.2;
-      
+
       // Mountain height
       const mountainHeight = h * params.heightMultiplier;
-      
+
       // Lerp
       return plainsHeight * (1 - mask) + mountainHeight * mask;
     }
@@ -278,7 +284,7 @@
     function gradientColor(h) {
       // Ajusta cores baseado na altura relativa ao max height atual
       const t = Math.max(0, Math.min(1, h / params.heightMultiplier));
-      
+
       // Water/Deep
       if (t < 0.05) return lerp([0x0f, 0x1e, 0x30], [0x1c, 0x4a, 0x7a], t / 0.05);
       // Grass/Plains
@@ -307,7 +313,7 @@
       // Vertex colors require a material that supports it.
       // We can reuse the same material instance if we don't change uniforms per chunk.
       if (materialCache.has('terrain')) return materialCache.get('terrain');
-      
+
       const mat = new THREE.MeshStandardMaterial({
         vertexColors: true,
         flatShading: false,
@@ -324,19 +330,19 @@
       geom.rotateX(-Math.PI / 2);
       const pos = geom.attributes.position;
       const colors = new Float32Array(pos.count * 3);
-      
+
       for (let i = 0; i < pos.count; i++) {
         const vx = pos.getX(i) + centerX;
         const vz = pos.getZ(i) + centerZ;
         const h = sampleHeight(vx, vz);
         pos.setY(i, h);
-        
+
         const c = gradientColor(h);
         colors[i * 3 + 0] = c.r;
         colors[i * 3 + 1] = c.g;
         colors[i * 3 + 2] = c.b;
       }
-      
+
       geom.setAttribute('color', new THREE.BufferAttribute(colors, 3));
       geom.computeVertexNormals();
       return geom;
@@ -355,7 +361,7 @@
         const mesh = new THREE.Mesh(geometry, createMaterial());
         mesh.position.set(centerX, 0, centerZ);
         // Shadow support
-        mesh.castShadow = false; 
+        mesh.castShadow = false;
         mesh.receiveShadow = true;
         lod.addLevel(mesh, level.distance);
       }
@@ -395,7 +401,7 @@
         }
       }
     }
-    
+
     function regenerate() {
       updateNoise();
       // Dispose all chunks
@@ -413,13 +419,13 @@
     folderGen.add(params, 'randomSeed').name('🎲 Seed Aleatória');
     folderGen.add(params, 'heightMultiplier', 10, 300).name('Altura Máx').onFinishChange(regenerate);
     folderGen.add(params, 'exponent', 0.1, 4.0).name('Exponente').onFinishChange(regenerate);
-    
+
     const folderNoise = gui.addFolder('Noise (Detalhes)');
     folderNoise.add(params, 'scale', 0.1, 5.0).name('Escala (Freq)').onFinishChange(regenerate);
     folderNoise.add(params, 'octaves', 1, 8, 1).name('Oitavas').onFinishChange(regenerate);
     folderNoise.add(params, 'persistence', 0.1, 1.0).name('Persistência').onFinishChange(regenerate);
     folderNoise.add(params, 'lacunarity', 1.0, 5.0).name('Lacunaridade').onFinishChange(regenerate);
-    
+
     const folderBiome = gui.addFolder('Bioma (Máscara)');
     folderBiome.add(params, 'biomeScale', 0.01, 2.0).name('Escala Bioma').onFinishChange(regenerate);
     folderBiome.add(params, 'maskOffset', -1.0, 1.0).name('Offset (Plan/Mont)').onFinishChange(regenerate);
@@ -502,24 +508,24 @@
       const pos = fpControls.getObject().position;
       const ground = sampleHeight(pos.x, pos.z);
       const minY = ground + EYE_HEIGHT;
-      
+
       if (pos.y < minY && verticalVel < 0) {
         pos.y = minY;
         verticalVel = 0;
         isOnGround = true;
       }
-      
+
       if (keyState.jump && isOnGround) {
         verticalVel = 20;
         isOnGround = false;
       }
-      
+
       pos.y += verticalVel * delta;
       // Safety check again
       if (pos.y < minY) {
-         pos.y = minY;
-         verticalVel = 0;
-         isOnGround = true;
+        pos.y = minY;
+        verticalVel = 0;
+        isOnGround = true;
       }
     }
 
@@ -558,18 +564,18 @@
     function animate() {
       const delta = clock.getDelta();
       const time = performance.now() * 0.001;
-      
+
       stats.begin();
       requestAnimationFrame(animate);
-      
+
       updateMovement(delta);
       updateNPCs(delta, time);
       updateChunks();
-      
+
       if (!fpControls.isLocked) {
         controls.update();
       }
-      
+
       renderer.render(scene, camera);
       stats.end();
       updateHud();
@@ -586,7 +592,7 @@
     // Init
     setupPointerLock();
     setupKeys();
-    
+
     // Spawn a zombie
     const zombie = createZombie({ scale: 1.2 });
     zombie.object.position.set(10, 0, 10);
@@ -595,7 +601,58 @@
 
     animate();
 
+    // --- GUI Drag & Drop ---
+    const guiContainer = document.querySelector('.lil-gui.root');
+    if (guiContainer) {
+      let isDragging = false;
+      let startX, startY, initialLeft, initialTop;
+
+      const onMouseDown = (e) => {
+        // Prevent dragging when interacting with controls
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.closest('.controller')) return;
+
+        isDragging = true;
+        startX = e.clientX;
+        startY = e.clientY;
+
+        const rect = guiContainer.getBoundingClientRect();
+        initialLeft = rect.left;
+        initialTop = rect.top;
+
+        guiContainer.style.cursor = 'grabbing';
+
+        // Switch to absolute positioning with left/top
+        guiContainer.style.right = 'auto';
+        guiContainer.style.bottom = 'auto';
+        guiContainer.style.left = `${initialLeft}px`;
+        guiContainer.style.top = `${initialTop}px`;
+
+        e.preventDefault();
+      };
+
+      const onMouseMove = (e) => {
+        if (!isDragging) return;
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        guiContainer.style.left = `${initialLeft + dx}px`;
+        guiContainer.style.top = `${initialTop + dy}px`;
+      };
+
+      const onMouseUp = () => {
+        isDragging = false;
+        guiContainer.style.cursor = 'auto';
+      };
+
+      guiContainer.addEventListener('mousedown', onMouseDown);
+      window.addEventListener('mousemove', onMouseMove);
+      window.addEventListener('mouseup', onMouseUp);
+    }
+
   </script>
+  <div
+    style="position: fixed; bottom: 10px; right: 10px; color: rgba(255,255,255,0.3); font-size: 11px; font-family: sans-serif; pointer-events: none;">
+    Exemplos criados com o auxílio de IA: Antigravity + Models and VSCode CODEX extension.
+  </div>
 </body>
 
 </html>

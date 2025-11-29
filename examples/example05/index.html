@@ -1,42 +1,97 @@
 <!doctype html>
 <html lang="pt-BR">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Example 04 · Terreno com planícies, chunks, LOD e casas voxel</title>
   <style>
-    html, body { margin: 0; height: 100%; overflow: hidden; background: #0b0f17; color: #e5e7eb; }
-    #info {
-      position: absolute; top: 12px; left: 12px; padding: 10px 14px;
-      background: rgba(0,0,0,0.55); border: 1px solid rgba(255,255,255,0.08);
-      font: 14px/1.4 Arial, sans-serif; border-radius: 8px; max-width: 380px;
+    html,
+    body {
+      margin: 0;
+      height: 100%;
+      overflow: hidden;
+      background: #0b0f17;
+      color: #e5e7eb;
     }
+
+    #info {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      padding: 10px 14px;
+      background: rgba(0, 0, 0, 0.55);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      font: 14px/1.4 Arial, sans-serif;
+      border-radius: 8px;
+      max-width: 380px;
+    }
+
     #hud {
-      position: absolute; top: 86px; left: 12px; padding: 10px 14px;
-      background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.08);
-      font: 12px/1.4 monospace; border-radius: 8px; min-width: 240px;
+      position: absolute;
+      top: 86px;
+      left: 12px;
+      padding: 10px 14px;
+      background: rgba(0, 0, 0, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      font: 12px/1.4 monospace;
+      border-radius: 8px;
+      min-width: 240px;
       color: #cbd5e1;
     }
+
     #home-btn {
-      position: absolute; top: 20px; right: 12px;
-      padding: 8px 12px; background: rgba(0,0,0,0.55);
-      border: 1px solid rgba(255,255,255,0.12); border-radius: 8px;
-      color: #e5e7eb; font: 13px/1.2 Arial, sans-serif; text-decoration: none;
-      backdrop-filter: blur(6px); z-index: 6;
+      position: absolute;
+      top: 20px;
+      right: 12px;
+      padding: 8px 12px;
+      background: rgba(0, 0, 0, 0.55);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 8px;
+      color: #e5e7eb;
+      font: 13px/1.2 Arial, sans-serif;
+      text-decoration: none;
+      backdrop-filter: blur(6px);
+      z-index: 6;
     }
-    #home-btn:hover { background: rgba(255,255,255,0.08); }
+
+    #home-btn:hover {
+      background: rgba(255, 255, 255, 0.08);
+    }
+
     #crosshair {
-      position: fixed; left: 50%; top: 50%; width: 18px; height: 18px;
-      transform: translate(-50%, -50%); pointer-events: none; z-index: 7;
+      position: fixed;
+      left: 50%;
+      top: 50%;
+      width: 18px;
+      height: 18px;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      z-index: 7;
     }
-    #crosshair::before, #crosshair::after {
-      content: ""; position: absolute; background: rgba(255,255,255,0.85);
-      left: 50%; top: 50%; transform: translate(-50%, -50%);
+
+    #crosshair::before,
+    #crosshair::after {
+      content: "";
+      position: absolute;
+      background: rgba(255, 255, 255, 0.85);
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
     }
-    #crosshair::before { width: 14px; height: 2px; }
-    #crosshair::after { width: 2px; height: 14px; }
+
+    #crosshair::before {
+      width: 14px;
+      height: 2px;
+    }
+
+    #crosshair::after {
+      width: 2px;
+      height: 14px;
+    }
   </style>
 </head>
+
 <body>
   <div id="info">
     Terreno procedural com planícies determinísticas (por SEED), streaming de chunks com LOD e casas voxel.<br />
@@ -71,9 +126,9 @@
     import Stats from 'three/addons/libs/stats.module.js';
     import { createNoise2D } from 'https://cdn.jsdelivr.net/npm/simplex-noise@4.0.1/+esm';
     import alea from 'https://cdn.jsdelivr.net/npm/alea@1.0.0/+esm';
-    import { createTudorHouse } from './example04/houses/tudorHouse.js';
-    import { createColorfulHouse } from './example04/houses/colorfulHouse.js';
-    import { createCottageHouse } from './example04/houses/cottageHouse.js';
+    import { createTudorHouse } from './houses/tudorHouse.js';
+    import { createColorfulHouse } from './houses/colorfulHouse.js';
+    import { createCottageHouse } from './houses/cottageHouse.js';
 
     const canvas = document.getElementById('c');
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -123,7 +178,7 @@
     stats.dom.style.left = 'calc(50% - 40px)';
     document.body.appendChild(stats.dom);
 
-    const infoSeed = parseSeedFromHash() || 'seed-example04';
+    const infoSeed = parseSeedFromHash() || 'seed-example05';
     const noise2D = createNoise2D(alea(infoSeed));
     const plains = generatePlains(infoSeed);
     const housesPlaced = new Set();
@@ -416,5 +471,10 @@
       return params.get('seed') || hash.split('seed=')[1] || null;
     }
   </script>
+  <div
+    style="position: fixed; bottom: 10px; right: 10px; color: rgba(255,255,255,0.3); font-size: 11px; font-family: sans-serif; pointer-events: none;">
+    Exemplos criados com o auxílio de IA: Antigravity + Models and VSCode CODEX extension.
+  </div>
 </body>
+
 </html>

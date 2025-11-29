@@ -35,7 +35,8 @@ Saída sobrescreve `heightmaps/sample-heightmap.png`. Recarregue a página para 
 - `examples/example01`: Heightmap estático → malha de terreno com Pointer Lock (WASD + pulo), névoa, luzes e starfield. Sampler bilinear mantém o player colado ao terreno.
 - `examples/example02`: Heightmap procedural (Simplex fBM) calculado no carregamento; blend de Pointer Lock + Orbit; overlay de performance (FPS, draws, tris, GPU, heap).
 - `examples/example03`: Terreno procedural infinito em chunks com multi-LOD, mira e HUD, mais um NPC zumbi low-poly que persegue o player.
-- `examples/example04`: Terreno procedural com planícies por SEED transmitido em chunks com LOD; seed configurável via hash; casas voxel espalhadas nas planícies; Pointer Lock e HUD com altura do pulo.
+- `examples/example04`: Geração procedural com Seed, Biomas (Planície/Relevo), controles GUI (lil-gui) para parâmetros do terreno, LOD e Chunks. Inclui botão "Voltar ao Início".
+- `examples/example05`: Terreno procedural com planícies determinísticas (por SEED), streaming de chunks com LOD e casas voxel espalhadas nas planícies. Seed configurável via hash.
 
 ## Como o render funciona (demo base)
 - Import map aponta `three` e `three/addons/` para o CDN unpkg, então não precisa build.
@@ -46,3 +47,6 @@ Saída sobrescreve `heightmaps/sample-heightmap.png`. Recarregue a página para 
 ## Ideias de extensão
 - Splat de texturas por altura/inclinação; espalhar props (árvores/rochas) via ruído.
 - Mini-mapa ou overlay de debug mostrando altura e inclinação da câmera.
+
+---
+*Exemplos criados com o auxílio de IA: Antigravity + Models and VSCode CODEX extension.*

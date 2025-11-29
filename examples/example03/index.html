@@ -141,7 +141,7 @@
     import Stats from 'three/addons/libs/stats.module.js';
     import { createNoise2D } from 'https://cdn.jsdelivr.net/npm/simplex-noise@4.0.1/+esm';
     import alea from 'https://cdn.jsdelivr.net/npm/alea@1.0.0/+esm';
-    import { createZombie } from './example03/zombie.js';
+    import { createZombie } from './zombie.js';
 
     const canvas = document.getElementById('c');
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -405,26 +405,31 @@
         pos.addScaledVector(right, dirX * speed * delta);
       }
 
-      // Gravity / jump
-      verticalVel -= 14 * delta;
+      // Gravity / jump (Matching example01 physics)
+      const gravity = 35;
+      const jumpSpeed = 18;
+
+      verticalVel -= gravity * delta;
+
       const pos = fpControls.getObject().position;
       const ground = sampleHeight(pos.x, pos.z);
       const minY = ground + EYE_HEIGHT;
+
       if (keyState.jump && isOnGround) {
-        verticalVel = 7;
+        verticalVel = jumpSpeed;
         isOnGround = false;
       }
-      pos.y += verticalVel;
-      const maxY = minY + MAX_JUMP_HEIGHT;
-      if (pos.y > maxY) {
-        pos.y = maxY;
-        verticalVel = Math.min(verticalVel, 0);
-      }
-      if (pos.y < minY) {
+
+      // Apply velocity
+      if (pos.y + verticalVel * delta <= minY) {
         pos.y = minY;
         verticalVel = 0;
         isOnGround = true;
+      } else {
+        pos.y += verticalVel * delta;
+        isOnGround = false;
       }
+
       heightAboveGround = Math.max(0, pos.y - minY);
       if (heightAboveGround > maxJumpHeight) {
         maxJumpHeight = heightAboveGround;
@@ -504,6 +509,10 @@
       return 'n/d';
     }
   </script>
+  <div
+    style="position: fixed; bottom: 10px; right: 10px; color: rgba(255,255,255,0.3); font-size: 11px; font-family: sans-serif; pointer-events: none;">
+    Exemplos criados com o auxílio de IA: Antigravity + Models and VSCode CODEX extension.
+  </div>
 </body>
 
 </html>

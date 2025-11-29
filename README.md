@@ -35,7 +35,8 @@ The output overwrites `heightmaps/sample-heightmap.png`. Reload the page to see 
 - `examples/example01`: Static heightmap → terrain mesh with Pointer Lock (WASD + jump), fog, lights, and starfield backdrop. Uses bilinear sampling to keep the player grounded.
 - `examples/example02`: Procedural Simplex fBM heightmap, updated at load-time; Pointer Lock + Orbit blend; performance overlay (FPS, draws, tris, GPU, heap).
 - `examples/example03`: Infinite procedural terrain streamed in chunks with multi-LOD meshes, central crosshair + HUD, and a low-poly zombie NPC that pursues the player.
-- `examples/example04`: Seeded terrain with injected flat areas (plains) streamed in chunks with LOD; configurable seed via URL hash; voxel houses spawned on plains; Pointer Lock controls and HUD (jump heights).
+- `examples/example04`: Procedural generation with Seed, Biomes (Plains/Relief), GUI controls (lil-gui) for terrain parameters, LOD, and Chunks. Includes "Back to Home" button.
+- `examples/example05`: Procedural terrain with deterministic plains (by SEED), chunk streaming with LOD, and voxel houses spawned on plains. Configurable seed via URL hash.
 
 ## How the rendering works (base demo)
 - Import map points `three` and `three/addons/` to the unpkg CDN, so no build step needed.
@@ -46,3 +47,6 @@ The output overwrites `heightmaps/sample-heightmap.png`. Reload the page to see 
 ## Ideas to extend
 - Texture splat based on height/slope; add props (trees/rocks) via scattered noise.
 - Mini-map or debug overlay showing camera height and slope.
+
+---
+*Examples created with the aid of AI: Antigravity + Models and VSCode CODEX extension.*
