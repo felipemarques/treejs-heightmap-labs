@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Three.js Heightmap Demo</title>
+  <style>
+    html,
+    body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #0b1320;
+      font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: #e8ecf5;
+    }
+
+    #info {
+      position: fixed;
+      top: 12px;
+      left: 12px;
+      padding: 8px 12px;
+      background: rgba(0, 0, 0, 0.45);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      font-size: 13px;
+      letter-spacing: 0.1px;
+      backdrop-filter: blur(6px);
+      z-index: 5;
+    }
+
+    #info strong {
+      color: #89c2ff;
+    }
+
+    #home-btn {
+      position: fixed;
+      top: 76px;
+      right: 12px;
+      padding: 8px 12px;
+      background: rgba(0, 0, 0, 0.55);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 8px;
+      color: #e8ecf5;
+      font-size: 13px;
+      text-decoration: none;
+      backdrop-filter: blur(6px);
+      z-index: 6;
+    }
+
+    #home-btn:hover {
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    canvas {
+      display: block;
+    }
+  </style>
+  <script type="module" crossorigin src="../../assets/example01-BcNPO4vl.js"></script>
+  <link rel="modulepreload" crossorigin href="../../assets/PointerLockControls-CkVu5uzN.js">
+</head>
+
+<body>
+  <a id="home-btn" href="/index.html">Voltar ao início</a>
+  <div id="info">
+    <strong>Heightmap:</strong> heightmaps/sample-heightmap.png<br />
+    Seed 1337 · Noise: Simplex (fBm)<br />
+    Clique no canvas para capturar o mouse · WASD move · Esc solta · Scroll gira quando solto
+  </div>
+  <canvas id="scene-canvas"></canvas>
+
+  <div
+    style="position: fixed; bottom: 10px; right: 10px; color: rgba(255,255,255,0.3); font-size: 11px; font-family: sans-serif; pointer-events: none;">
+    Examples created with the aid of AI: Antigravity + Models and VSCode CODEX extension.
+  </div>
+</body>
+
+</html>
