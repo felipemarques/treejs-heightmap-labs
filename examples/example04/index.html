@@ -1,0 +1,601 @@
+<!doctype html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Example 04 - Seed & Biomes</title>
+  <style>
+    html,
+    body {
+      margin: 0;
+      height: 100%;
+      overflow: hidden;
+      background: #0c0f17;
+      color: #e5e7eb;
+    }
+
+    #info {
+      position: relative;
+      top: 12px;
+      left: 12px;
+      padding: 10px 14px;
+      background: rgba(0, 0, 0, 0.55);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      font: 14px/1.4 Arial, sans-serif;
+      border-radius: 8px;
+      max-width: 320px;
+      pointer-events: none; /* Let clicks pass through for controls */
+    }
+
+    #hud {
+      position: relative;
+      top: 24px;
+      left: 12px;
+      padding: 10px 14px;
+      background: rgba(0, 0, 0, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      font: 12px/1.4 monospace;
+      border-radius: 8px;
+      min-width: 220px;
+      color: #cbd5e1;
+      pointer-events: none;
+    }
+
+    #home-btn {
+      position: absolute;
+      top: 20px;
+      right: 12px;
+      padding: 8px 12px;
+      background: rgba(0, 0, 0, 0.55);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 8px;
+      color: #e5e7eb;
+      font: 13px/1.2 Arial, sans-serif;
+      text-decoration: none;
+      backdrop-filter: blur(6px);
+      z-index: 6;
+    }
+
+    #home-btn:hover {
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    a {
+      color: #7dd3fc;
+      text-decoration: none;
+    }
+
+    div.dashboardsContainer {
+      width: 400px;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 5;
+    }
+
+    #crosshair {
+      position: fixed;
+      left: 50%;
+      top: 50%;
+      width: 18px;
+      height: 18px;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      z-index: 7;
+    }
+
+    #crosshair::before,
+    #crosshair::after {
+      content: "";
+      position: absolute;
+      background: rgba(255, 255, 255, 0.85);
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    #crosshair::before {
+      width: 14px;
+      height: 2px;
+    }
+
+    #crosshair::after {
+      width: 2px;
+      height: 14px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="dashboardsContainer">
+
+    <div id="info">
+      <strong>Example 04</strong><br/>
+      Geração procedural com Seed e Biomas.<br />
+      Use o painel à direita para configurar o terreno.<br/>
+      Clique no canvas para capturar o mouse (WASD + Espaço).
+    </div>
+
+    <div id="hud">
+      <div>Chunks carregados: --</div>
+      <div>LOD levels: --</div>
+      <div>Tris: --</div>
+      <div>FPS: --</div>
+    </div>
+
+  </div>
+
+  <canvas id="c"></canvas>
+  <a id="home-btn" href="/index.html">Voltar ao início</a>
+  <div id="crosshair"></div>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+    import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+    import Stats from 'three/addons/libs/stats.module.js';
+    import { createNoise2D } from 'https://cdn.jsdelivr.net/npm/simplex-noise@4.0.1/+esm';
+    import alea from 'https://cdn.jsdelivr.net/npm/alea@1.0.0/+esm';
+    import { createZombie } from './zombie.js';
+
+    // --- Parâmetros de Geração ---
+    const params = {
+      seed: 'heightmap-seed-04',
+      scale: 1.0,
+      heightMultiplier: 60,
+      exponent: 1.2,
+      
+      // FBM Noise
+      octaves: 4,
+      persistence: 0.5,
+      lacunarity: 2.0,
+      
+      // Biome / Mask
+      biomeScale: 0.3,
+      maskOffset: 0.0,
+      
+      // Helper
+      randomSeed: () => {
+        params.seed = Math.random().toString(36).substring(7);
+        // Atualiza a GUI se necessário (será feito no regenerate se ligado)
+        // Mas o lil-gui atualiza o display se mudarmos o objeto? 
+        // Precisamos atualizar o controller.
+        seedController.updateDisplay();
+        regenerate();
+      }
+    };
+
+    let noise2D;
+    
+    function updateNoise() {
+      const rng = alea(params.seed);
+      noise2D = createNoise2D(rng);
+    }
+    
+    // Inicializa noise
+    updateNoise();
+
+    const canvas = document.getElementById('c');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setSize(window.innerWidth, window.innerHeight);
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0c0f17);
+    scene.fog = new THREE.FogExp2(0x0c0f17, 0.0025);
+
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 5000);
+    camera.position.set(0, 50, 50);
+
+    // Controls
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.target.set(0, 10, 0);
+
+    const fpControls = new PointerLockControls(camera, renderer.domElement);
+    
+    // Lights
+    scene.add(new THREE.HemisphereLight(0xa0b9ff, 0x101820, 0.5));
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+    dirLight.position.set(100, 200, 100);
+    dirLight.castShadow = true;
+    scene.add(dirLight);
+
+    // --- Chunk System ---
+    const CHUNK_SIZE = 64; // Aumentei um pouco para ver mais detalhes
+    const LOD_LEVELS = [
+      { segments: 64, distance: CHUNK_SIZE * 1.5 },
+      { segments: 32, distance: CHUNK_SIZE * 3.0 },
+      { segments: 16, distance: CHUNK_SIZE * 6.0 },
+      { segments: 8, distance: CHUNK_SIZE * 10.0 },
+    ];
+    const CHUNK_RADIUS = 4; 
+    const EYE_HEIGHT = 2.5;
+
+    const chunkCache = new Map();
+    const materialCache = new Map();
+    
+    // --- Height Sampling Logic ---
+    function sampleHeight(x, z) {
+      const nx = x / 200; 
+      const nz = z / 200;
+
+      // 1. Biome Mask (Planície vs Montanha)
+      // Low frequency noise
+      let mask = noise2D(nx * params.biomeScale, nz * params.biomeScale);
+      // Map -1..1 to 0..1
+      mask = (mask + 1) / 2;
+      // Apply offset
+      mask = Math.max(0, Math.min(1, mask + params.maskOffset));
+      // Smooth transition
+      mask = mask * mask * (3 - 2 * mask);
+
+      // 2. Detail Noise (FBM)
+      let amplitude = 1;
+      let frequency = 1;
+      let noiseSum = 0;
+      let amplitudeSum = 0;
+
+      for(let i=0; i<params.octaves; i++) {
+        noiseSum += amplitude * noise2D(nx * params.scale * frequency, nz * params.scale * frequency);
+        amplitudeSum += amplitude;
+        amplitude *= params.persistence;
+        frequency *= params.lacunarity;
+      }
+
+      // Normalize roughly
+      let h = noiseSum / amplitudeSum; // -1..1
+      h = (h + 1) / 2; // 0..1
+      
+      // Apply exponent (sharpen peaks or flatten valleys)
+      h = Math.pow(h, params.exponent);
+
+      // 3. Combine
+      // Se mask é 0 (planície), queremos altura baixa e pouca variação.
+      // Se mask é 1 (montanha), queremos altura total.
+      
+      // Base height for plains (variação suave)
+      const plainsHeight = (noise2D(nx * 10, nz * 10) * 0.05 + 0.1) * params.heightMultiplier * 0.2;
+      
+      // Mountain height
+      const mountainHeight = h * params.heightMultiplier;
+      
+      // Lerp
+      return plainsHeight * (1 - mask) + mountainHeight * mask;
+    }
+
+    function gradientColor(h) {
+      // Ajusta cores baseado na altura relativa ao max height atual
+      const t = Math.max(0, Math.min(1, h / params.heightMultiplier));
+      
+      // Water/Deep
+      if (t < 0.05) return lerp([0x0f, 0x1e, 0x30], [0x1c, 0x4a, 0x7a], t / 0.05);
+      // Grass/Plains
+      if (t < 0.3) return lerp([0x2d, 0x6a, 0x3f], [0x54, 0xa8, 0x63], (t - 0.05) / 0.25);
+      // Rock/Mountain
+      if (t < 0.7) return lerp([0x5c, 0x53, 0x4b], [0x8f, 0x86, 0x76], (t - 0.3) / 0.4);
+      // Snow
+      return lerp([0xe0, 0xe0, 0xe0], [0xff, 0xff, 0xff], (t - 0.7) / 0.3);
+    }
+
+    function lerp(c1, c2, t) {
+      const k = Math.max(0, Math.min(1, t));
+      return {
+        r: (c1[0] + (c2[0] - c1[0]) * k) / 255,
+        g: (c1[1] + (c2[1] - c1[1]) * k) / 255,
+        b: (c1[2] + (c2[2] - c1[2]) * k) / 255,
+      };
+    }
+
+    function chunkKey(ix, iz) {
+      return `${ix},${iz}`;
+    }
+
+    function createMaterial() {
+      // Reuse single material or create new?
+      // Vertex colors require a material that supports it.
+      // We can reuse the same material instance if we don't change uniforms per chunk.
+      if (materialCache.has('terrain')) return materialCache.get('terrain');
+      
+      const mat = new THREE.MeshStandardMaterial({
+        vertexColors: true,
+        flatShading: false,
+        roughness: 0.8,
+        metalness: 0.1,
+        side: THREE.DoubleSide
+      });
+      materialCache.set('terrain', mat);
+      return mat;
+    }
+
+    function makeGeometry(segments, centerX, centerZ) {
+      const geom = new THREE.PlaneGeometry(CHUNK_SIZE, CHUNK_SIZE, segments, segments);
+      geom.rotateX(-Math.PI / 2);
+      const pos = geom.attributes.position;
+      const colors = new Float32Array(pos.count * 3);
+      
+      for (let i = 0; i < pos.count; i++) {
+        const vx = pos.getX(i) + centerX;
+        const vz = pos.getZ(i) + centerZ;
+        const h = sampleHeight(vx, vz);
+        pos.setY(i, h);
+        
+        const c = gradientColor(h);
+        colors[i * 3 + 0] = c.r;
+        colors[i * 3 + 1] = c.g;
+        colors[i * 3 + 2] = c.b;
+      }
+      
+      geom.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+      geom.computeVertexNormals();
+      return geom;
+    }
+
+    function buildChunk(ix, iz) {
+      const key = chunkKey(ix, iz);
+      if (chunkCache.has(key)) return chunkCache.get(key);
+
+      const centerX = ix * CHUNK_SIZE + CHUNK_SIZE / 2;
+      const centerZ = iz * CHUNK_SIZE + CHUNK_SIZE / 2;
+      const lod = new THREE.LOD();
+
+      for (const level of LOD_LEVELS) {
+        const geometry = makeGeometry(level.segments, centerX, centerZ);
+        const mesh = new THREE.Mesh(geometry, createMaterial());
+        mesh.position.set(centerX, 0, centerZ);
+        // Shadow support
+        mesh.castShadow = false; 
+        mesh.receiveShadow = true;
+        lod.addLevel(mesh, level.distance);
+      }
+
+      scene.add(lod);
+      const chunk = { lod, ix, iz, lastUsed: performance.now() };
+      chunkCache.set(key, chunk);
+      return chunk;
+    }
+
+    function disposeChunk(chunk) {
+      if (!chunk || !chunk.lod) return;
+      chunk.lod.levels.forEach(({ object }) => {
+        if (object.geometry) object.geometry.dispose();
+      });
+      scene.remove(chunk.lod);
+    }
+
+    function updateChunks() {
+      const ix = Math.floor(camera.position.x / CHUNK_SIZE);
+      const iz = Math.floor(camera.position.z / CHUNK_SIZE);
+
+      const needed = new Set();
+      for (let dz = -CHUNK_RADIUS; dz <= CHUNK_RADIUS; dz++) {
+        for (let dx = -CHUNK_RADIUS; dx <= CHUNK_RADIUS; dx++) {
+          const nx = ix + dx;
+          const nz = iz + dz;
+          needed.add(chunkKey(nx, nz));
+          buildChunk(nx, nz).lastUsed = performance.now();
+        }
+      }
+
+      for (const [key, chunk] of chunkCache.entries()) {
+        if (!needed.has(key)) {
+          disposeChunk(chunk);
+          chunkCache.delete(key);
+        }
+      }
+    }
+    
+    function regenerate() {
+      updateNoise();
+      // Dispose all chunks
+      for (const chunk of chunkCache.values()) {
+        disposeChunk(chunk);
+      }
+      chunkCache.clear();
+      // updateChunks will rebuild them next frame
+    }
+
+    // --- GUI ---
+    const gui = new GUI({ title: 'Configurações' });
+    const folderGen = gui.addFolder('Geral');
+    const seedController = folderGen.add(params, 'seed').name('Seed').onFinishChange(regenerate);
+    folderGen.add(params, 'randomSeed').name('🎲 Seed Aleatória');
+    folderGen.add(params, 'heightMultiplier', 10, 300).name('Altura Máx').onFinishChange(regenerate);
+    folderGen.add(params, 'exponent', 0.1, 4.0).name('Exponente').onFinishChange(regenerate);
+    
+    const folderNoise = gui.addFolder('Noise (Detalhes)');
+    folderNoise.add(params, 'scale', 0.1, 5.0).name('Escala (Freq)').onFinishChange(regenerate);
+    folderNoise.add(params, 'octaves', 1, 8, 1).name('Oitavas').onFinishChange(regenerate);
+    folderNoise.add(params, 'persistence', 0.1, 1.0).name('Persistência').onFinishChange(regenerate);
+    folderNoise.add(params, 'lacunarity', 1.0, 5.0).name('Lacunaridade').onFinishChange(regenerate);
+    
+    const folderBiome = gui.addFolder('Bioma (Máscara)');
+    folderBiome.add(params, 'biomeScale', 0.01, 2.0).name('Escala Bioma').onFinishChange(regenerate);
+    folderBiome.add(params, 'maskOffset', -1.0, 1.0).name('Offset (Plan/Mont)').onFinishChange(regenerate);
+
+    // --- Stats & HUD ---
+    const hudEl = document.getElementById('hud');
+    const stats = new Stats();
+    stats.showPanel(0);
+    stats.dom.style.position = 'absolute';
+    stats.dom.style.top = '12px';
+    stats.dom.style.left = 'calc(50% - 40px)';
+    document.body.appendChild(stats.dom);
+
+    const clock = new THREE.Clock();
+    const npcs = [];
+
+    // --- Input Handling ---
+    const keyState = { forward: false, backward: false, left: false, right: false, jump: false };
+    let isOnGround = false;
+    let verticalVel = 0;
+    const npcTarget = new THREE.Vector3();
+
+    function setupPointerLock() {
+      const infoEl = document.getElementById('info');
+      const target = renderer.domElement;
+      target.addEventListener('click', (e) => {
+        // Only lock if not clicking on GUI
+        // lil-gui captures events, so this should be fine
+        e.preventDefault();
+        fpControls.lock();
+      });
+      fpControls.addEventListener('lock', () => {
+        infoEl.style.opacity = '0.5';
+        controls.enabled = false;
+      });
+      fpControls.addEventListener('unlock', () => {
+        infoEl.style.opacity = '1';
+        controls.enabled = true;
+        controls.target.copy(fpControls.getObject().position);
+        controls.update();
+      });
+    }
+
+    function setupKeys() {
+      const handler = (pressed) => (event) => {
+        switch (event.code) {
+          case 'KeyW': case 'ArrowUp': keyState.forward = pressed; break;
+          case 'KeyS': case 'ArrowDown': keyState.backward = pressed; break;
+          case 'KeyA': case 'ArrowLeft': keyState.left = pressed; break;
+          case 'KeyD': case 'ArrowRight': keyState.right = pressed; break;
+          case 'Space': keyState.jump = pressed; break;
+        }
+      };
+      document.addEventListener('keydown', handler(true));
+      document.addEventListener('keyup', handler(false));
+    }
+
+    const tmpDir = new THREE.Vector3();
+    const forward = new THREE.Vector3();
+    const right = new THREE.Vector3();
+
+    function updateMovement(delta) {
+      if (!fpControls.isLocked) return;
+
+      const dirX = (keyState.right ? 1 : 0) - (keyState.left ? 1 : 0);
+      const dirZ = (keyState.forward ? 1 : 0) - (keyState.backward ? 1 : 0);
+      const hasInput = dirX !== 0 || dirZ !== 0;
+      const speed = 25; // Faster movement for large maps
+
+      if (hasInput) {
+        forward.copy(fpControls.getDirection(tmpDir)).setY(0).normalize();
+        right.crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
+        const pos = fpControls.getObject().position;
+        pos.addScaledVector(forward, dirZ * speed * delta);
+        pos.addScaledVector(right, dirX * speed * delta);
+      }
+
+      // Gravity / jump
+      verticalVel -= 50 * delta;
+      const pos = fpControls.getObject().position;
+      const ground = sampleHeight(pos.x, pos.z);
+      const minY = ground + EYE_HEIGHT;
+      
+      if (pos.y < minY && verticalVel < 0) {
+        pos.y = minY;
+        verticalVel = 0;
+        isOnGround = true;
+      }
+      
+      if (keyState.jump && isOnGround) {
+        verticalVel = 20;
+        isOnGround = false;
+      }
+      
+      pos.y += verticalVel * delta;
+      // Safety check again
+      if (pos.y < minY) {
+         pos.y = minY;
+         verticalVel = 0;
+         isOnGround = true;
+      }
+    }
+
+    function updateNPCs(delta, time) {
+      if (npcs.length === 0) return;
+      const playerPos = fpControls.getObject().position;
+      npcs.forEach((npc) => {
+        npc.update(delta, time);
+        // Simple follow logic
+        npcTarget.copy(playerPos);
+        const pos = npc.object.position;
+        const dir = npcTarget.clone().sub(pos);
+        dir.y = 0;
+        const dist = dir.length();
+        if (dist > 2.0) {
+          dir.normalize();
+          pos.addScaledVector(dir, 8.0 * delta);
+          npc.object.rotation.y = Math.atan2(dir.x, dir.z);
+        }
+        // Snap to ground
+        pos.y = sampleHeight(pos.x, pos.z) + 0.1;
+      });
+    }
+
+    function updateHud() {
+      const info = renderer.info;
+      const tris = info.render.triangles;
+      const fps = Math.round(stats.getFPS ? stats.getFPS() : 0) || '--';
+      hudEl.innerHTML = `
+        <div>Chunks: ${chunkCache.size}</div>
+        <div>Tris: ${tris.toLocaleString('pt-BR')}</div>
+        <div>FPS: ${fps}</div>
+      `;
+    }
+
+    function animate() {
+      const delta = clock.getDelta();
+      const time = performance.now() * 0.001;
+      
+      stats.begin();
+      requestAnimationFrame(animate);
+      
+      updateMovement(delta);
+      updateNPCs(delta, time);
+      updateChunks();
+      
+      if (!fpControls.isLocked) {
+        controls.update();
+      }
+      
+      renderer.render(scene, camera);
+      stats.end();
+      updateHud();
+    }
+
+    function onResize() {
+      const { innerWidth: w, innerHeight: h } = window;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+    }
+    window.addEventListener('resize', onResize);
+
+    // Init
+    setupPointerLock();
+    setupKeys();
+    
+    // Spawn a zombie
+    const zombie = createZombie({ scale: 1.2 });
+    zombie.object.position.set(10, 0, 10);
+    scene.add(zombie.object);
+    npcs.push(zombie);
+
+    animate();
+
+  </script>
+</body>
+
+</html>
