@@ -7,8 +7,10 @@
     "example": "examples"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "serve": "npx -y http-server -p 8081 ."
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "deploy": "vite build && gh-pages -d dist"
   },
   "repository": {
     "type": "git",
@@ -28,5 +30,15 @@
   "bugs": {
     "url": "https://github.com/felipemarques/treejs-heightmap-labs/issues"
   },
-  "homepage": "https://github.com/felipemarques/treejs-heightmap-labs#readme"
+  "homepage": "https://github.com/felipemarques/treejs-heightmap-labs#readme",
+  "dependencies": {
+    "alea": "^1.0.1",
+    "gh-pages": "^6.3.0",
+    "lil-gui": "^0.21.0",
+    "simplex-noise": "^4.0.3",
+    "three": "^0.181.2"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0"
+  }
 }

@@ -29,7 +29,7 @@
 
     #hud {
       position: absolute;
-      top: 86px;
+      top: 202px;
       left: 12px;
       padding: 10px 14px;
       background: rgba(0, 0, 0, 0.6);
@@ -96,7 +96,8 @@
   <div id="info">
     Terreno procedural com planícies determinísticas (por SEED), streaming de chunks com LOD e casas voxel.<br />
     Clique no canvas para capturar o mouse · WASD move | Espaço salta · Scroll gira quando solto.<br />
-    Ajuste o SEED via hash da URL, ex: <code>#seed=minhaSeed123</code>.
+    Ajuste o SEED via hash da URL, ex: <code>#seed=minhaSeed123</code>.<br />
+    <strong>Pressione 'T' para teleportar para o Moinho mais próximo!</strong>
   </div>
   <div id="hud">
     <div>Seed: --</div>
@@ -111,24 +112,20 @@
   <div id="crosshair"></div>
   <canvas id="c"></canvas>
 
-  <script type="importmap">
-    {
-      "imports": {
-        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
-      }
-    }
-  </script>
   <script type="module">
     import * as THREE from 'three';
-    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-    import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
-    import Stats from 'three/addons/libs/stats.module.js';
-    import { createNoise2D } from 'https://cdn.jsdelivr.net/npm/simplex-noise@4.0.1/+esm';
-    import alea from 'https://cdn.jsdelivr.net/npm/alea@1.0.0/+esm';
+    import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+    import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls.js';
+    import Stats from 'three/examples/jsm/libs/stats.module.js';
+    import { createNoise2D } from 'simplex-noise';
+    import alea from 'alea';
     import { createTudorHouse } from './houses/tudorHouse.js';
     import { createColorfulHouse } from './houses/colorfulHouse.js';
     import { createCottageHouse } from './houses/cottageHouse.js';
+    import { createModernHouse } from './houses/modernHouse.js';
+    import { createVillageHouse } from './houses/villageHouse.js';
+    import { createTowerHouse } from './houses/towerHouse.js';
+    import { createWindmill } from './houses/windmill.js';
 
     const canvas = document.getElementById('c');
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -146,9 +143,9 @@
     controls.target.set(0, 14, 0);
 
     const fpControls = new PointerLockControls(camera, renderer.domElement);
-    fpControls.getObject().position.set(0, 14, 80);
-    scene.add(fpControls.getObject());
-    controls.target.copy(fpControls.getObject().position);
+    camera.position.set(0, 14, 80);
+    // scene.add(fpControls.getObject());
+    controls.target.copy(camera.position);
 
     scene.add(new THREE.HemisphereLight(0xa0b9ff, 0x101820, 0.75));
     const dirLight = new THREE.DirectionalLight(0xffffff, 0.9);
@@ -166,7 +163,7 @@
     const CHUNK_RADIUS = 4;
     const PLAINS_SPREAD = 1000;
     const FLAT_RADIUS = 20;
-    const NUM_PLAINS = 14;
+    const NUM_PLAINS = 30; // Increased from 14 to spawn more houses
     const EYE_HEIGHT = 6;
     const MAX_JUMP_HEIGHT = 10;
 
@@ -182,6 +179,7 @@
     const noise2D = createNoise2D(alea(infoSeed));
     const plains = generatePlains(infoSeed);
     const housesPlaced = new Set();
+    const animatedObjects = []; // Track objects with update methods (e.g., windmills)
 
     const chunkCache = new Map();
     const materialCache = new Map();
@@ -333,7 +331,7 @@
       fpControls.addEventListener('unlock', () => {
         infoEl.style.opacity = '1';
         controls.enabled = true;
-        controls.target.copy(fpControls.getObject().position);
+        controls.target.copy(camera.position);
         controls.update();
       });
     }
@@ -349,6 +347,9 @@
           case 'ShiftLeft':
           case 'ShiftRight':
             keyState.run = pressed;
+            break;
+          case 'KeyT':
+            if (pressed) teleportToWindmill();
             break;
         }
       };
@@ -370,15 +371,23 @@
           scene.add(house);
           chunk.houses.push(house);
           housesPlaced.add(idx);
+          // Track animated objects (windmills, etc.)
+          if (house.userData.update) {
+            animatedObjects.push(house);
+          }
         }
       });
     }
 
     function pickHouse(seedIdx) {
       const r = alea(`${infoSeed}-house-type-${seedIdx}`)();
-      if (r < 0.33) return createTudorHouse();
-      if (r < 0.66) return createColorfulHouse();
-      return createCottageHouse();
+      if (r < 0.30) return createWindmill(); // Increased to 30% for visibility
+      if (r < 0.40) return createTudorHouse();
+      if (r < 0.50) return createColorfulHouse();
+      if (r < 0.60) return createCottageHouse();
+      if (r < 0.75) return createModernHouse();
+      if (r < 0.90) return createVillageHouse();
+      return createTowerHouse();
     }
 
     function heightAt(x, z) {
@@ -393,6 +402,37 @@
       return THREE.MathUtils.lerp(a, b, 0.5) * HEIGHT_SCALE;
     }
 
+    function teleportToWindmill() {
+      // Find nearest plain that should have a windmill
+      let nearestDist = Infinity;
+      let target = null;
+      const playerPos = fpControls.getObject().position;
+
+      plains.forEach((p, idx) => {
+        // Check if this plain spawns a windmill (same logic as pickHouse)
+        const r = alea(`${infoSeed}-house-type-${idx}`)();
+        if (r < 0.30) {
+          const dx = p.x - playerPos.x;
+          const dz = p.z - playerPos.z;
+          const dist = Math.sqrt(dx * dx + dz * dz);
+          if (dist < nearestDist) {
+            nearestDist = dist;
+            target = p;
+          }
+        }
+      });
+
+      if (target) {
+        // Teleport
+        const y = heightAt(target.x, target.z) + 20; // Drop from sky
+        camera.position.set(target.x, y, target.z + 20); // Offset to see it
+        verticalVel = 0;
+        console.log("Teleported to windmill at", target);
+      } else {
+        console.log("No windmills found in this seed!");
+      }
+    }
+
     function updateMovement(delta) {
       if (!fpControls.isLocked) return;
 
@@ -400,7 +440,7 @@
       const dirZ = (keyState.forward ? 1 : 0) - (keyState.backward ? 1 : 0);
       const hasInput = dirX !== 0 || dirZ !== 0;
       const speed = keyState.run ? 38 : 16;
-      const pos = fpControls.getObject().position;
+      const pos = camera.position;
 
       if (hasInput) {
         forward.copy(fpControls.getDirection(tmpDir)).setY(0).normalize();
@@ -445,6 +485,13 @@
       requestAnimationFrame(animate);
       updateMovement(delta);
       updateChunks();
+      // Update animated objects (windmills)
+      const playerPos = camera.position;
+      animatedObjects.forEach(obj => {
+        if (obj.userData.update) {
+          obj.userData.update(delta, playerPos);
+        }
+      });
       if (!fpControls.isLocked) controls.update();
       renderer.render(scene, camera);
       stats.end();

@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Three.js Heightmap Labs · Examples</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
+    integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous" />
+  <style>
+    body {
+      background: radial-gradient(circle at 20% 20%, #0e1525, #05080f 45%);
+      color: #e9ecf5;
+      min-height: 100vh;
+    }
+
+    .card {
+      background: rgba(12, 18, 30, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      color: #e9ecf5;
+    }
+
+    .badge {
+      font-weight: 600;
+    }
+
+    a {
+      text-decoration: none;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container py-4">
+    <div class="d-flex align-items-center mb-4">
+      <div>
+        <h1 class="h3 mb-1">Three.js Heightmap Labs</h1>
+        <p class="text-secondary mb-0">Browse examples built in this repo</p>
+      </div>
+      <div class="ms-auto">
+        <a class="btn btn-outline-light btn-sm" href="README.md">README (EN)</a>
+        <a class="btn btn-outline-light btn-sm" href="README.pt-br.md">README (PT-BR)</a>
+      </div>
+    </div>
+
+    <div class="row g-3">
+      <div class="col-md-6 col-lg-4">
+        <a href="examples/example01/index.html">
+          <div class="card h-100 shadow-sm">
+            <div class="card-body">
+              <div class="d-flex align-items-start mb-2">
+                <h2 class="h5 mb-0">Example 01</h2>
+                <span class="badge bg-info text-dark ms-2">Heightmap</span>
+              </div>
+              <p class="card-text small text-secondary mb-2">
+                Seeded Simplex heightmap → terrain mesh with FPS controls, jump, and starfield backdrop.
+              </p>
+              <ul class="small text-secondary mb-3 ps-3">
+                <li>Pointer Lock (WASD + mouse + jump)</li>
+                <li>Height sampler keeps camera grounded</li>
+                <li>Procedural heightmap from Pillow script</li>
+              </ul>
+              <div class="d-flex align-items-center text-info small">
+                <span class="me-2">Open demo</span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+                  <path
+                    d="M6.364 3.5a.5.5 0 0 0 0 1h4.793L3.5 12.157a.5.5 0 1 0 .707.707L11.864 5.207V10a.5.5 0 0 0 1 0v-6.5H6.364Z" />
+                </svg>
+              </div>
+            </div>
+          </div>
+        </a>
+      </div>
+
+      <div class="col-md-6 col-lg-4">
+        <a href="examples/example02/index.html">
+          <div class="card h-100 shadow-sm">
+            <div class="card-body">
+              <div class="d-flex align-items-start mb-2">
+                <h2 class="h5 mb-0">Example 02</h2>
+                <span class="badge bg-warning text-dark ms-2">Realtime</span>
+              </div>
+              <p class="card-text small text-secondary mb-2">
+                Heightmap gerado em tempo real com ruído Simplex (fBM) e paleta de cores por altitude.
+              </p>
+              <ul class="small text-secondary mb-3 ps-3">
+                <li>Pointer Lock + Orbit para inspeção</li>
+                <li>Terreno procedural com sampler de altura</li>
+                <li>Overlay de performance (FPS, GPU, mem)</li>
+              </ul>
+              <div class="d-flex align-items-center text-info small">
+                <span class="me-2">Open demo</span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+                  <path
+                    d="M6.364 3.5a.5.5 0 0 0 0 1h4.793L3.5 12.157a.5.5 0 1 0 .707.707L11.864 5.207V10a.5.5 0 0 0 1 0v-6.5H6.364Z" />
+                </svg>
+              </div>
+            </div>
+          </div>
+        </a>
+      </div>
+
+      <div class="col-md-6 col-lg-4">
+        <a href="examples/example03/index.html">
+          <div class="card h-100 shadow-sm">
+            <div class="card-body">
+              <div class="d-flex align-items-start mb-2">
+                <h2 class="h5 mb-0">Example 03</h2>
+                <span class="badge bg-success text-dark ms-2">LOD + Chunks</span>
+              </div>
+              <p class="card-text small text-secondary mb-2">
+                Terreno procedural infinito (Simplex fBM) com chunks dinâmicos, LOD e NPC zumbi low-poly.
+              </p>
+              <ul class="small text-secondary mb-3 ps-3">
+                <li>Streaming de chunks + múltiplos níveis de LOD</li>
+                <li>Pointer Lock para navegar; mira central e HUD</li>
+                <li>NPC zumbi low-poly que persegue o player</li>
+              </ul>
+              <div class="d-flex align-items-center text-info small">
+                <span class="me-2">Open demo</span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+                  <path
+                    d="M6.364 3.5a.5.5 0 0 0 0 1h4.793L3.5 12.157a.5.5 0 1 0 .707.707L11.864 5.207V10a.5.5 0 0 0 1 0v-6.5H6.364Z" />
+                </svg>
+              </div>
+            </div>
+          </div>
+        </a>
+      </div>
+
+      <div class="col-md-6 col-lg-4">
+        <a href="examples/example04/index.html">
+          <div class="card h-100 shadow-sm">
+            <div class="card-body">
+              <div class="d-flex align-items-start mb-2">
+                <h2 class="h5 mb-0">Example 04</h2>
+                <span class="badge bg-primary text-dark ms-2">Seed + Biomes + GUI</span>
+              </div>
+              <p class="card-text small text-secondary mb-2">
+                Geração procedural com Seed e Biomas (Planície/Montanha), controles GUI em tempo real.
+              </p>
+              <ul class="small text-secondary mb-3 ps-3">
+                <li>Seed configurável e aleatória</li>
+                <li>Biomas definidos por máscara de ruído</li>
+                <li>Controles GUI (lil-gui) para ajustar terreno</li>
+              </ul>
+              <div class="d-flex align-items-center text-info small">
+                <span class="me-2">Open demo</span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+                  <path
+                    d="M6.364 3.5a.5.5 0 0 0 0 1h4.793L3.5 12.157a.5.5 0 1 0 .707.707L11.864 5.207V10a.5.5 0 0 0 1 0v-6.5H6.364Z" />
+                </svg>
+              </div>
+            </div>
+          </div>
+        </a>
+      </div>
+
+      <div class="col-md-6 col-lg-4">
+        <a href="examples/example05/index.html">
+          <div class="card h-100 shadow-sm">
+            <div class="card-body">
+              <div class="d-flex align-items-start mb-2">
+                <h2 class="h5 mb-0">Example 05</h2>
+                <span class="badge bg-primary text-dark ms-2">Plains + Voxels</span>
+              </div>
+              <p class="card-text small text-secondary mb-2">
+                Terreno procedural com planícies determinísticas e casas voxel espalhadas.
+              </p>
+              <ul class="small text-secondary mb-3 ps-3">
+                <li>Seed configurável via hash (ex: #seed=abc)</li>
+                <li>Planícies achatadas no relevo</li>
+                <li>Casas voxel modulares (Tudor, Cottage, etc)</li>
+              </ul>
+              <div class="d-flex align-items-center text-info small">
+                <span class="me-2">Open demo</span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+                  <path
+                    d="M6.364 3.5a.5.5 0 0 0 0 1h4.793L3.5 12.157a.5.5 0 1 0 .707.707L11.864 5.207V10a.5.5 0 0 0 1 0v-6.5H6.364Z" />
+                </svg>
+              </div>
+            </div>
+          </div>
+        </a>
+      </div>
+
+      <!-- Placeholder for future examples -->
+      <div class="col-md-6 col-lg-4">
+        <div class="card h-100 border border-dashed border-secondary" style="border-style: dashed;">
+          <div class="card-body d-flex flex-column justify-content-center text-secondary">
+            <div class="text-center">
+              <div class="mb-2">Next example slot</div>
+              <small>Drop new demos into <code>examples/exampleXX</code> and add a card here.</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div
+    style="position: fixed; bottom: 10px; right: 10px; color: rgba(255,255,255,0.3); font-size: 11px; font-family: sans-serif; pointer-events: none;">
+    Examples created with the aid of AI: Antigravity + Models and VSCode CODEX extension.
+  </div>
+</body>
+
+</html>
+```

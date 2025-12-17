@@ -82,20 +82,12 @@
     <div>Mem: --</div>
   </div>
 
-  <script type="importmap">
-    {
-      "imports": {
-        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
-      }
-    }
-  </script>
   <script type="module">
     import * as THREE from 'three';
-    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-    import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
-    import Stats from 'three/addons/libs/stats.module.js';
-    import { createNoise2D } from 'https://cdn.jsdelivr.net/npm/simplex-noise@4.0.1/+esm';
+    import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+    import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls.js';
+    import Stats from 'three/examples/jsm/libs/stats.module.js';
+    import { createNoise2D } from 'simplex-noise';
 
     const canvas = document.getElementById('c');
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -118,10 +110,10 @@
     controls.target.set(0, 10, 0);
 
     const fpControls = new PointerLockControls(camera, renderer.domElement);
-    fpControls.getObject().position.set(0, maxElevation + 10, 40);
-    camera.position.copy(fpControls.getObject().position);
-    scene.add(fpControls.getObject());
-    controls.target.copy(fpControls.getObject().position);
+    camera.position.set(0, maxElevation + 10, 40);
+    // camera.position.copy(fpControls.getObject().position); // Redundant now
+    // scene.add(fpControls.getObject());
+    controls.target.copy(camera.position);
 
     scene.add(new THREE.AmbientLight(0xffffff, 0.35));
     const dirLight = new THREE.DirectionalLight(0xffffff, 0.9);
@@ -225,7 +217,7 @@
       fpControls.addEventListener('unlock', () => {
         info.style.opacity = '1';
         controls.enabled = true;
-        controls.target.copy(fpControls.getObject().position);
+        controls.target.copy(camera.position);
         controls.update();
       });
     }
@@ -287,7 +279,7 @@
         (keyState.forward ? 1 : 0) - (keyState.backward ? 1 : 0)
       ).normalize();
 
-      const pos = fpControls.getObject().position;
+      const pos = camera.position;
 
       if (direction.lengthSq() > 0) {
         forward.copy(fpControls.getDirection(tmpDir)).setY(0).normalize();

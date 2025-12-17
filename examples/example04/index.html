@@ -137,22 +137,14 @@
   <a id="home-btn" href="/index.html">Voltar ao início</a>
   <div id="crosshair"></div>
 
-  <script type="importmap">
-    {
-      "imports": {
-        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
-      }
-    }
-  </script>
   <script type="module">
     import * as THREE from 'three';
-    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-    import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
-    import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
-    import Stats from 'three/addons/libs/stats.module.js';
-    import { createNoise2D } from 'https://cdn.jsdelivr.net/npm/simplex-noise@4.0.1/+esm';
-    import alea from 'https://cdn.jsdelivr.net/npm/alea@1.0.0/+esm';
+    import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+    import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls.js';
+    import { GUI } from 'lil-gui';
+    import Stats from 'three/examples/jsm/libs/stats.module.js';
+    import { createNoise2D } from 'simplex-noise';
+    import alea from 'alea';
     import { createZombie } from './zombie.js';
 
     // --- Parâmetros de Geração ---
@@ -464,7 +456,7 @@
       fpControls.addEventListener('unlock', () => {
         infoEl.style.opacity = '1';
         controls.enabled = true;
-        controls.target.copy(fpControls.getObject().position);
+        controls.target.copy(camera.position);
         controls.update();
       });
     }
@@ -498,14 +490,14 @@
       if (hasInput) {
         forward.copy(fpControls.getDirection(tmpDir)).setY(0).normalize();
         right.crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
-        const pos = fpControls.getObject().position;
+        const pos = camera.position;
         pos.addScaledVector(forward, dirZ * speed * delta);
         pos.addScaledVector(right, dirX * speed * delta);
       }
 
       // Gravity / jump
       verticalVel -= 50 * delta;
-      const pos = fpControls.getObject().position;
+      const pos = camera.position;
       const ground = sampleHeight(pos.x, pos.z);
       const minY = ground + EYE_HEIGHT;
 
@@ -531,7 +523,7 @@
 
     function updateNPCs(delta, time) {
       if (npcs.length === 0) return;
-      const playerPos = fpControls.getObject().position;
+      const playerPos = camera.position;
       npcs.forEach((npc) => {
         npc.update(delta, time);
         // Simple follow logic

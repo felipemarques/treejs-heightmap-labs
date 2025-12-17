@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Three.js Heightmap Demo</title>
+  <style>
+    html,
+    body {
+      margin: 0;
+      height: 100%;
+      overflow: hidden;
+      background: #0f1116;
+      color: #e5e7eb;
+    }
+
+    #info {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      padding: 10px 14px;
+      background: rgba(0, 0, 0, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      font: 14px/1.4 Arial, sans-serif;
+      border-radius: 8px;
+    }
+
+    #perf {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      padding: 10px 14px;
+      background: rgba(0, 0, 0, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      font: 12px/1.4 monospace;
+      border-radius: 8px;
+      min-width: 180px;
+      color: #cbd5e1;
+      z-index: 5;
+    }
+
+    #home-btn {
+      position: absolute;
+      top: 76px;
+      right: 12px;
+      padding: 8px 12px;
+      background: rgba(0, 0, 0, 0.55);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 8px;
+      color: #e5e7eb;
+      font: 13px/1.2 Arial, sans-serif;
+      text-decoration: none;
+      backdrop-filter: blur(6px);
+      z-index: 6;
+    }
+
+    #home-btn:hover {
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    a {
+      color: #67e8f9;
+      text-decoration: none;
+    }
+  </style>
+  <script type="module" crossorigin src="../../assets/example02-BvpQvdHB.js"></script>
+  <link rel="modulepreload" crossorigin href="../../assets/PointerLockControls-CkVu5uzN.js">
+  <link rel="modulepreload" crossorigin href="../../assets/simplex-noise-BLd_4JM9.js">
+</head>
+
+<body>
+  <div id="info">
+    Heightmap gerado em tempo real com ruído Simplex (fBM).<br />
+    Clique no canvas para capturar o mouse · WASD move | Espaço salta · Scroll gira quando solto.
+  </div>
+  <canvas id="c"></canvas>
+  <a id="home-btn" href="/index.html">Voltar ao início</a>
+  <div id="perf">
+    <div>FPS: --</div>
+    <div>ms: --</div>
+    <div>Draws: -- | Tris: --</div>
+    <div>Geom/Mats: -- / --</div>
+    <div>GPU: --</div>
+    <div>Mem: --</div>
+  </div>
+
+  <div
+    style="position: fixed; bottom: 10px; right: 10px; color: rgba(255,255,255,0.3); font-size: 11px; font-family: sans-serif; pointer-events: none;">
+    Examples created with the aid of AI: Antigravity + Models and VSCode CODEX extension.
+  </div>
+</body>
+
+</html>

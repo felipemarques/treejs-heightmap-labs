@@ -69,18 +69,10 @@
   </div>
   <canvas id="scene-canvas"></canvas>
 
-  <script type="importmap">
-      {
-        "imports": {
-          "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-          "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
-        }
-      }
-    </script>
   <script type="module">
     import * as THREE from "three";
-    import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-    import { PointerLockControls } from "three/addons/controls/PointerLockControls.js";
+    import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+    import { PointerLockControls } from "three/examples/jsm/controls/PointerLockControls.js";
 
     const canvas = document.getElementById("scene-canvas");
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -99,7 +91,7 @@
     // FPS navigation (Pointer Lock)
     const fpControls = new PointerLockControls(camera, renderer.domElement);
     camera.position.set(0, 25, 80);
-    scene.add(fpControls.getObject());
+    // scene.add(fpControls.getObject()); // Removed in newer Three.js versions
 
     // Orbit para inspeção quando mouse não está capturado
     const orbit = new OrbitControls(camera, renderer.domElement);
@@ -246,7 +238,7 @@
       fpControls.addEventListener("unlock", () => {
         blocker.style.opacity = "1";
         orbit.enabled = true;
-        orbit.target.copy(fpControls.getObject().position);
+        orbit.target.copy(camera.position);
         orbit.update();
       });
     }
@@ -324,11 +316,11 @@
         const speed = params.moveSpeed * delta;
         forward.copy(fpControls.getDirection(tmpDir)).setY(0).normalize();
         right.crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
-        const pos = fpControls.getObject().position;
+        const pos = camera.position;
         pos.addScaledVector(forward, direction.z * speed);
         pos.addScaledVector(right, direction.x * speed);
       }
-      const pos = fpControls.getObject().position;
+      const pos = camera.position;
 
       // Gravity and ground stick
       velocity.y -= params.gravity * delta;
